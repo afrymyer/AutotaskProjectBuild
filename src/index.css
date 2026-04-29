@@ -1,0 +1,73 @@
+:root {
+  /* IMIX-internal palette — placeholder values, replace with brand tokens */
+  --imix-bg: #0f1115;
+  --imix-surface: #161a22;
+  --imix-text: #e8ecf2;
+  --imix-muted: #8a93a3;
+  --imix-accent: #4f8bff;
+
+  --util-green: #2ec27e;
+  --util-yellow: #f5c243;
+  --util-orange: #f08a3e;
+  --util-red: #e0524a;
+
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  color-scheme: dark;
+  color: var(--imix-text);
+  background: var(--imix-bg);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 1280px;
+}
+
+a {
+  color: var(--imix-accent);
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  padding: 12px 24px;
+  background: var(--imix-surface);
+  border-bottom: 1px solid #232934;
+}
+
+.brand {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.app-header nav {
+  display: flex;
+  gap: 16px;
+}
+
+.app-header nav a {
+  color: var(--imix-muted);
+  text-decoration: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.app-header nav a.active {
+  color: var(--imix-text);
+  background: #232934;
+}
+
+.app-main {
+  flex: 1;
+  padding: 24px;
+}

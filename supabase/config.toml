@@ -1,0 +1,22 @@
+# Supabase local dev config. Production config is set via the Supabase dashboard.
+project_id = "imix-projects"
+
+[api]
+enabled = true
+port = 54321
+
+[db]
+port = 54322
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+# Clerk is the IDP. Supabase auth is unused; we validate Clerk JWTs directly.
+enabled = false
+
+[functions.autotask-sync]
+verify_jwt = false
+# Scheduled hourly via the Supabase dashboard (cron: "0 * * * *").

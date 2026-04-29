@@ -1,21 +1,67 @@
-import { useParams } from 'react-router-dom';
-
-// TODO(M3): Drilldown for a single (resource, week) cell.
-// - Pull schedule entries for resource_id where week_start_et(start_at) = :weekStart
-// - Group by project, then by task; show hours per row
-// - Surface the override (PTO, unavailable) for the same week if any
+import { useParams, Link } from 'react-router-dom';
+import { useDrilldownEntries } from '../lib/data';
+import { projectName, taskTitle } from '../dev/dummyData';
 
 export function DrilldownPage() {
   const { resourceId, weekStart } = useParams();
+  const id = Number(resourceId);
+  const week = weekStart ?? '';
+  const { entries, scheduledHours } = useDrilldownEntries(id, week);
+
+  const grouped = new Map<number, typeof entries>();
+  for (const e of entries) {
+    const key = e.project_id ?? -1;
+    const existing = grouped.get(key) ?? [];
+    existing.push(e);
+    grouped.set(key, existing);
+  }
+
   return (
     <section>
-      <h1>Drilldown</h1>
       <p>
-        Resource <code>{resourceId}</code> · week of <code>{weekStart}</code>
+        <Link to="/">← Back to heatmap</Link>
       </p>
-      <div data-placeholder="drilldown-list">
-        Schedule entries grouped by project/task will render here.
-      </div>
+      <h1>Drilldown</h1>
+      <p className="muted">
+        Resource <code>{resourceId}</code> · week of <code>{week}</code> ·{' '}
+        <strong>{scheduledHours}h scheduled</strong>
+      </p>
+
+      {entries.length === 0 ? (
+        <p>No schedule entries for this week.</p>
+      ) : (
+        <div className="drilldown">
+          {[...grouped.entries()].map(([projectId, projectEntries]) => {
+            const total = projectEntries.reduce((s, e) => s + e.hours, 0);
+            return (
+              <div key={projectId} className="drilldown-project">
+                <h3>
+                  {projectName(projectId === -1 ? null : projectId)}{' '}
+                  <span className="muted">· {Math.round(total * 10) / 10}h</span>
+                </h3>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Task</th>
+                      <th>Start</th>
+                      <th>Hours</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {projectEntries.map((e) => (
+                      <tr key={e.autotask_id}>
+                        <td>{taskTitle(e.task_id)}</td>
+                        <td>{new Date(e.start_at).toLocaleString()}</td>
+                        <td>{e.hours}h</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </section>
   );
 }

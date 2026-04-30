@@ -17,8 +17,23 @@ export interface Project {
   name: string;
   status: string;
   account_id: number | null;
+  account_name?: string;
   start_date: string | null;
   end_date: string | null;
+  estimated_hours: number;
+}
+
+export type PipelineStatus =
+  | 'On Hold'
+  | 'Opportunity - On Track'
+  | 'Opportunity - Off Track'
+  | 'Discovery';
+
+export interface PipelineProject extends Project {
+  status: PipelineStatus;
+  target_month: string; // 'YYYY-MM'
+  next_action?: string;
+  last_client_contact?: string;
 }
 
 export interface Task {

@@ -4,7 +4,13 @@
  *
  * NOT used when Clerk + Supabase are configured (production mode).
  */
-import type { Resource, ScheduleEntry, UtilizationCell, WeeklyOverride } from '../lib/types';
+import type {
+  PipelineProject,
+  Resource,
+  ScheduleEntry,
+  UtilizationCell,
+  WeeklyOverride,
+} from '../lib/types';
 
 const FIRST_NAMES = ['Sarah', 'Marcus', 'Priya', 'James', 'Elena', 'David', 'Aisha', 'Tom'];
 const LAST_NAMES = ['Chen', 'Rodriguez', 'Patel', 'Brennan', 'Vasquez', 'Kim', 'Okafor', 'Sullivan'];
@@ -134,6 +140,19 @@ export function generateScheduleEntriesFor(
   return entries;
 }
 
+/** All schedule entries across all PS resources and all 12 visible weeks. */
+export function generateAllScheduleEntries(): ScheduleEntry[] {
+  const cells = generateUtilizationCells();
+  const all: ScheduleEntry[] = [];
+  for (const cell of cells) {
+    if (cell.scheduled_hours <= 0) continue;
+    all.push(
+      ...generateScheduleEntriesFor(cell.resource_id, cell.week_start_et, cell.scheduled_hours),
+    );
+  }
+  return all;
+}
+
 export function projectName(projectId: number | null): string {
   if (projectId == null) return '(no project)';
   return PROJECTS.find((p) => p.id === projectId)?.name ?? `Project ${projectId}`;
@@ -162,10 +181,109 @@ function hoursAgo(h: number): string {
 }
 
 export const DUMMY_STATUS_MAPPINGS = [
-  { entity_type: 'project', autotask_status: 'In Progress', app_bucket: 'active', counts_toward_utilization: true },
-  { entity_type: 'project', autotask_status: 'On Hold', app_bucket: 'inactive', counts_toward_utilization: false },
-  { entity_type: 'project', autotask_status: 'Complete', app_bucket: 'complete', counts_toward_utilization: false },
-  { entity_type: 'task', autotask_status: 'In Progress', app_bucket: 'active', counts_toward_utilization: true },
-  { entity_type: 'task', autotask_status: 'Waiting on Customer', app_bucket: 'inactive', counts_toward_utilization: false },
-  { entity_type: 'task', autotask_status: 'Complete', app_bucket: 'complete', counts_toward_utilization: false },
+  { entity_type: 'project', autotask_status: 'In Progress',            app_bucket: 'active',   counts_toward_utilization: true },
+  { entity_type: 'project', autotask_status: 'On Hold',                app_bucket: 'pipeline', counts_toward_utilization: false },
+  { entity_type: 'project', autotask_status: 'Opportunity - On Track', app_bucket: 'pipeline', counts_toward_utilization: false },
+  { entity_type: 'project', autotask_status: 'Opportunity - Off Track',app_bucket: 'pipeline', counts_toward_utilization: false },
+  { entity_type: 'project', autotask_status: 'Discovery',              app_bucket: 'pipeline', counts_toward_utilization: false },
+  { entity_type: 'project', autotask_status: 'Complete',               app_bucket: 'complete', counts_toward_utilization: false },
+  { entity_type: 'task',    autotask_status: 'In Progress',            app_bucket: 'active',   counts_toward_utilization: true },
+  { entity_type: 'task',    autotask_status: 'Waiting on Customer',    app_bucket: 'inactive', counts_toward_utilization: false },
+  { entity_type: 'task',    autotask_status: 'Complete',               app_bucket: 'complete', counts_toward_utilization: false },
 ];
+
+// ─── Pipeline projects (On Hold + Opportunity + Discovery) ──────────────────
+// Target months are anchored to "today" so the forecast strip lines up
+// regardless of when the preview is run.
+function monthOffset(months: number): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() + months, 1);
+  return d.toISOString().slice(0, 7);
+}
+
+export const DUMMY_PIPELINE: PipelineProject[] = [
+  {
+    autotask_id: 9001,
+    name: 'Acme Phase 2 — Identity Modernization',
+    account_id: 1,
+    account_name: 'Acme Industries',
+    status: 'Opportunity - On Track',
+    estimated_hours: 240,
+    start_date: null,
+    end_date: null,
+    target_month: monthOffset(0),
+    next_action: 'Send updated SOW',
+    last_client_contact: daysAgo(4),
+  },
+  {
+    autotask_id: 9002,
+    name: 'Globex Server Refresh',
+    account_id: 2,
+    account_name: 'Globex Corp',
+    status: 'On Hold',
+    estimated_hours: 80,
+    start_date: null,
+    end_date: null,
+    target_month: monthOffset(0),
+    next_action: 'Re-engage CFO on budget',
+    last_client_contact: daysAgo(21),
+  },
+  {
+    autotask_id: 9003,
+    name: 'Initech AD Migration',
+    account_id: 3,
+    account_name: 'Initech',
+    status: 'Discovery',
+    estimated_hours: 120,
+    start_date: null,
+    end_date: null,
+    target_month: monthOffset(1),
+    next_action: 'Discovery workshop scheduled',
+    last_client_contact: daysAgo(2),
+  },
+  {
+    autotask_id: 9004,
+    name: 'Hooli Backup Modernization (Phase 2)',
+    account_id: 4,
+    account_name: 'Hooli',
+    status: 'Opportunity - Off Track',
+    estimated_hours: 180,
+    start_date: null,
+    end_date: null,
+    target_month: monthOffset(1),
+    next_action: 'Need updated requirements from IT director',
+    last_client_contact: daysAgo(31),
+  },
+  {
+    autotask_id: 9005,
+    name: 'Pied Piper M365 Tenant Build',
+    account_id: 5,
+    account_name: 'Pied Piper',
+    status: 'Opportunity - On Track',
+    estimated_hours: 160,
+    start_date: null,
+    end_date: null,
+    target_month: monthOffset(2),
+    next_action: 'Awaiting executed MSA',
+    last_client_contact: daysAgo(6),
+  },
+  {
+    autotask_id: 9006,
+    name: 'Acme Networking Refresh',
+    account_id: 1,
+    account_name: 'Acme Industries',
+    status: 'On Hold',
+    estimated_hours: 60,
+    start_date: null,
+    end_date: null,
+    target_month: monthOffset(2),
+    next_action: 'Hardware lead time blocking start',
+    last_client_contact: daysAgo(12),
+  },
+];
+
+function daysAgo(d: number): string {
+  const dt = new Date();
+  dt.setDate(dt.getDate() - d);
+  return dt.toISOString().slice(0, 10);
+}

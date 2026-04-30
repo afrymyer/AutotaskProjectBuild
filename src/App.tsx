@@ -1,6 +1,9 @@
 import { Routes, Route, NavLink } from 'react-router-dom';
 import { SignedIn, SignedOut, RedirectToSignIn } from '@clerk/clerk-react';
 import { HeatmapPage } from './pages/Heatmap';
+import { CalendarPage } from './pages/Calendar';
+import { PipelinePage } from './pages/Pipeline';
+import { SchedulerPage } from './pages/Scheduler';
 import { DrilldownPage } from './pages/Drilldown';
 import { OverridesPage } from './pages/Overrides';
 import { AdminPage } from './pages/Admin';
@@ -19,6 +22,9 @@ function Shell({ children }: { children: React.ReactNode }) {
         <div className="brand">Imix Projects</div>
         <nav>
           <NavLink to="/" end>Heatmap</NavLink>
+          <NavLink to="/calendar">Calendar</NavLink>
+          <NavLink to="/pipeline">Pipeline</NavLink>
+          <NavLink to="/scheduler">Scheduler</NavLink>
           <NavLink to="/overrides">Overrides</NavLink>
           <NavLink to="/admin">Admin</NavLink>
           <NavLink to="/export">Export</NavLink>
@@ -34,6 +40,9 @@ function Routed() {
     <Shell>
       <Routes>
         <Route path="/" element={<HeatmapPage />} />
+        <Route path="/calendar" element={<CalendarPage />} />
+        <Route path="/pipeline" element={<PipelinePage />} />
+        <Route path="/scheduler" element={<SchedulerPage />} />
         <Route path="/resource/:resourceId/week/:weekStart" element={<DrilldownPage />} />
         <Route path="/overrides" element={<OverridesPage />} />
         <Route path="/admin" element={<AdminPage />} />

@@ -143,6 +143,7 @@ The sync's pull order (resources → projects → tasks → schedule_entries →
 
 Captured here so they don't leak into the timeline.
 
+- **Capacity-aware scheduler (v1.5).** Given a project's hours and target start, suggest a week-by-week allocation across engineers based on real availability. Three tiers: greedy capacity fill (Tier 1, v1.5), milestone + dependency-aware planner (Tier 2, v2), Claude-assisted plan iteration (Tier 3, v2 once AI scope is approved). Designed against ≥1 sprint of real sync data so suggestions are grounded.
 - **Resource self-view** — PS resources see their own row only. Requires `app_users.linked_resource_id` matching + RLS row filter.
 - **Variance reporting** — scheduled vs actual using `autotask_time_entries`.
 - **Soft-delete reconciliation** — weekly full ID sweep to detect Autotask deletions.
@@ -169,3 +170,6 @@ Every meaningful trade-off lands here so future Claude Code sessions don't re-li
 | 2026-04-29 | CSV export consumers: Director of Ops + vCIO | Drives schema for `/export`. Confirm exact columns at M4 kickoff. |
 | 2026-04-29 | US-only Supabase region | Confirmed by Andy. |
 | 2026-04-29 | IMIX-internal branding | Confirmed by Andy. |
+| 2026-04-29 | Pipeline = `autotask_projects` filtered by status (`On Hold`, `Opportunity - On Track`, `Opportunity - Off Track`, `Discovery`); no separate Opportunities entity | Andy: pulling status from existing project sync keeps the pipeline data flow on rails managers already use. |
+| 2026-04-29 | Calendar "free" threshold = day utilization < 50% (i.e., < 4h of 8h scheduled) | Andy: calls a person available if they have meaningful slack, not only if zero-booked. |
+| 2026-04-29 | Scheduler deferred to v1.5 | Avoids overloading the 2026-05-13 pilot; built once we have real sync history. |

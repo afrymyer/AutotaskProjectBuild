@@ -413,3 +413,184 @@ input[type='text'] {
   border: 1px solid rgba(224, 82, 74, 0.4);
   color: var(--util-red);
 }
+
+.banner.roadmap {
+  background: rgba(79, 139, 255, 0.10);
+  border: 1px solid rgba(79, 139, 255, 0.35);
+  color: var(--imix-text);
+}
+
+/* ─── page header (calendar) ──────────────────────────────────────────── */
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  margin-bottom: 16px;
+}
+
+.month-nav {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.month-label {
+  font-weight: 600;
+  min-width: 160px;
+  text-align: center;
+}
+
+/* ─── calendar grid ───────────────────────────────────────────────────── */
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  background: var(--imix-border);
+  border: 1px solid var(--imix-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.cal-dow {
+  background: var(--imix-surface-2);
+  padding: 8px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--imix-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.cal-day {
+  background: var(--imix-surface);
+  border: none;
+  color: var(--imix-text);
+  min-height: 84px;
+  padding: 8px;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font: inherit;
+  border-radius: 0;
+}
+
+.cal-day:hover {
+  background: var(--imix-surface-2);
+}
+
+.cal-day-other {
+  opacity: 0.45;
+}
+
+.cal-day-today {
+  outline: 2px solid var(--imix-accent);
+  outline-offset: -2px;
+}
+
+.cal-day-number {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--imix-muted);
+}
+
+.cal-day-stat {
+  font-size: 13px;
+}
+
+.cal-day-stat strong {
+  font-size: 18px;
+  color: var(--imix-text);
+}
+
+.cal-day-stat span {
+  color: var(--imix-muted);
+  font-size: 11px;
+  margin-left: 4px;
+}
+
+/* ─── side panel ──────────────────────────────────────────────────────── */
+
+.side-panel-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: flex-end;
+  z-index: 100;
+}
+
+.side-panel {
+  background: var(--imix-surface);
+  border-left: 1px solid var(--imix-border);
+  width: 420px;
+  max-width: 95vw;
+  height: 100%;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.side-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.side-panel-header h2 {
+  margin: 0 0 4px;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--imix-text);
+  font-size: 16px;
+}
+
+.side-panel-group {
+  margin-top: 18px;
+}
+
+.side-panel-group h3 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--imix-muted);
+  padding-left: 8px;
+  margin-bottom: 8px;
+}
+
+.side-panel-group ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.side-panel-group li {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--imix-border);
+  font-size: 13px;
+}
+
+/* ─── pipeline / forecast ─────────────────────────────────────────────── */
+
+.forecast-table {
+  margin-bottom: 24px;
+}
+
+.cell-warn {
+  color: var(--util-orange);
+}
+
+.cell-warn-marker {
+  font-size: 11px;
+  margin-left: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}

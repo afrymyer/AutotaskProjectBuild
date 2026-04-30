@@ -339,10 +339,26 @@ A Postgres trigger on first `auth.jwt()`-bearing request inserts an `app_users` 
 | Route | Purpose |
 |---|---|
 | `/` | Heatmap — rows = resources, columns = next 12 weeks, cells colored by utilization |
+| `/calendar` | Team availability calendar — day-level "X of N free" (free = <50% of 8h day) |
+| `/pipeline` | Pipeline view — projects with statuses bucketed as `pipeline` in `status_mappings`; month-by-month forecast of free hours vs pipeline hours |
+| `/scheduler` | **v1.5 stub** — capacity-aware project scheduling; placeholder in v1 |
 | `/resource/:id/week/:weekStart` | Drilldown — schedule entries + tasks + projects driving that cell |
 | `/overrides` | Override editor — table of resources × weeks for PTO + unavailable hours |
 | `/admin` | Status mappings, weekly capacity defaults, sync history |
 | `/export` | CSV export trigger (Director of Ops + vCIO consumers) |
+
+### 6.1 Pipeline derivation
+
+The pipeline view is a derived read off `autotask_projects` — there is **no separate Opportunities entity**. A project belongs in the pipeline iff its status maps to `app_bucket = 'pipeline'` via `status_mappings`. The seed mappings (migration `0004`) are:
+
+| Autotask status | app_bucket |
+|---|---|
+| `On Hold` | `pipeline` |
+| `Opportunity - On Track` | `pipeline` |
+| `Opportunity - Off Track` | `pipeline` |
+| `Discovery` | `pipeline` |
+
+Admins can add or remove pipeline statuses from the Admin page, and `autotask_projects.estimated_hours` (added in `0004`) is the per-project hour estimate that the forecast aggregates by `target_month`.
 
 State management: `@tanstack/react-query` for Supabase reads. No global store needed in v1.
 

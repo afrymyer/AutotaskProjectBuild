@@ -5,15 +5,29 @@
  * NOT used when Clerk + Supabase are configured (production mode).
  */
 import type {
+  AiMessage,
+  ContractType,
+  Integration,
   PipelineProject,
+  Project,
+  ProjectRequiredSkill,
   Resource,
+  ResourceSkill,
   ScheduleEntry,
+  Skill,
+  Task,
   UtilizationCell,
+  UtilizationSnapshot,
   WeeklyOverride,
 } from '../lib/types';
 
 const FIRST_NAMES = ['Sarah', 'Marcus', 'Priya', 'James', 'Elena', 'David', 'Aisha', 'Tom'];
 const LAST_NAMES = ['Chen', 'Rodriguez', 'Patel', 'Brennan', 'Vasquez', 'Kim', 'Okafor', 'Sullivan'];
+const ROLES: Resource['app_role'][] = [
+  'senior', 'principal', 'engineer', 'engineer', 'senior', 'engineer', 'principal', 'manager',
+];
+const RATES = [185, 220, 155, 155, 185, 155, 220, 240];
+const TARGETS = [0.80, 0.75, 0.80, 0.80, 0.80, 0.80, 0.70, 0.55];
 
 export const DUMMY_RESOURCES: Resource[] = FIRST_NAMES.map((first, i) => ({
   autotask_id: 1000 + i,
@@ -22,14 +36,17 @@ export const DUMMY_RESOURCES: Resource[] = FIRST_NAMES.map((first, i) => ({
   is_active: true,
   department: 'Professional Services',
   weekly_capacity_hours: 40,
+  target_billable_pct: TARGETS[i] ?? 0.75,
+  blended_rate: RATES[i] ?? 175,
+  app_role: ROLES[i] ?? 'engineer',
 }));
 
-const PROJECTS = [
-  { id: 5001, name: 'Acme M365 Migration' },
-  { id: 5002, name: 'Globex Security Hardening' },
-  { id: 5003, name: 'Initech Network Refresh' },
-  { id: 5004, name: 'Hooli Backup Modernization' },
-  { id: 5005, name: 'Pied Piper SharePoint Rollout' },
+const ACTIVE_PROJECTS_RAW = [
+  { id: 5001, name: 'Acme M365 Migration',         account: 'Acme Industries',   contract_type: 'fixed_fee',         budget_hours: 320, value: 56000, end: 22 },
+  { id: 5002, name: 'Globex Security Hardening',   account: 'Globex Corp',       contract_type: 'time_and_materials', budget_hours: 180, value: 0,     end: 60 },
+  { id: 5003, name: 'Initech Network Refresh',     account: 'Initech',           contract_type: 'fixed_fee',         budget_hours: 240, value: 42000, end: 45 },
+  { id: 5004, name: 'Hooli Backup Modernization',  account: 'Hooli',             contract_type: 'time_and_materials', budget_hours: 200, value: 0,     end: 75 },
+  { id: 5005, name: 'Pied Piper SharePoint Rollout', account: 'Pied Piper',      contract_type: 'fixed_fee',         budget_hours: 160, value: 28000, end: 30 },
 ];
 
 const TASK_TITLES = [
@@ -43,8 +60,6 @@ const TASK_TITLES = [
 ];
 
 function getMondayInET(d: Date): Date {
-  // Approximation suitable for preview. Production code uses week_start_et()
-  // in Postgres which is the source of truth.
   const dayOfWeek = d.getDay();
   const monday = new Date(d);
   monday.setDate(d.getDate() - ((dayOfWeek + 6) % 7));
@@ -61,6 +76,16 @@ export function getNext12Weeks(): string[] {
   });
 }
 
+/** 13-week backward window for trend lines (last 90 days). */
+export function getLast13Weeks(): string[] {
+  const start = getMondayInET(new Date());
+  return Array.from({ length: 13 }, (_, i) => {
+    const d = new Date(start);
+    d.setDate(start.getDate() - (13 - i) * 7);
+    return d.toISOString().slice(0, 10);
+  });
+}
+
 function seeded(seed: number): () => number {
   let s = seed;
   return () => {
@@ -69,13 +94,36 @@ function seeded(seed: number): () => number {
   };
 }
 
+// ─── ACTIVE PROJECTS ─────────────────────────────────────────────────────────
+export const DUMMY_ACTIVE_PROJECTS: Project[] = ACTIVE_PROJECTS_RAW.map((p, i) => {
+  const rand = seeded(p.id);
+  const consumed = Math.round(p.budget_hours * (0.3 + rand() * 0.6));
+  const end = new Date();
+  end.setDate(end.getDate() + p.end);
+  return {
+    autotask_id: p.id,
+    name: p.name,
+    status: 'In Progress',
+    account_id: i + 1,
+    account_name: p.account,
+    start_date: daysAgo(60 - i * 10),
+    end_date: end.toISOString().slice(0, 10),
+    committed_end_date: end.toISOString().slice(0, 10),
+    estimated_hours: p.budget_hours,
+    budget_hours: p.budget_hours,
+    hours_delivered: consumed,
+    contract_type: p.contract_type as ContractType,
+    contract_value: p.value,
+  };
+});
+
 export function generateUtilizationCells(): UtilizationCell[] {
   const weeks = getNext12Weeks();
   const cells: UtilizationCell[] = [];
 
   for (const resource of DUMMY_RESOURCES) {
     const rand = seeded(resource.autotask_id);
-    const baseline = 0.6 + rand() * 0.55; // 60%–115% personal tendency
+    const baseline = 0.6 + rand() * 0.55;
 
     for (let weekIdx = 0; weekIdx < weeks.length; weekIdx++) {
       const week = weeks[weekIdx]!;
@@ -100,6 +148,31 @@ export function generateUtilizationCells(): UtilizationCell[] {
   return cells;
 }
 
+/** Historical snapshots — last 13 weeks of utilization per resource. */
+export function generateHistoricalSnapshots(): UtilizationSnapshot[] {
+  const weeks = getLast13Weeks();
+  const out: UtilizationSnapshot[] = [];
+  for (const resource of DUMMY_RESOURCES) {
+    const rand = seeded(resource.autotask_id + 7777);
+    const baseline = 0.65 + rand() * 0.4;
+    for (let i = 0; i < weeks.length; i++) {
+      const variance = (rand() - 0.5) * 0.35;
+      const target = Math.max(0.1, baseline + variance);
+      const scheduled = target * 40;
+      const delivered = scheduled * (0.85 + rand() * 0.2); // actual ~85-105% of scheduled
+      out.push({
+        taken_on: weeks[i]!,
+        resource_id: resource.autotask_id,
+        week_start_et: weeks[i]!,
+        scheduled_hours: Math.round(scheduled * 10) / 10,
+        delivered_hours: Math.round(delivered * 10) / 10,
+        capacity_hours: 40,
+      });
+    }
+  }
+  return out;
+}
+
 export function generateScheduleEntriesFor(
   resourceId: number,
   weekStart: string,
@@ -112,8 +185,8 @@ export function generateScheduleEntriesFor(
   const start = new Date(weekStart);
 
   while (remaining > 0.1) {
-    const projectIdx = Math.floor(rand() * PROJECTS.length);
-    const project = PROJECTS[projectIdx]!;
+    const projectIdx = Math.floor(rand() * ACTIVE_PROJECTS_RAW.length);
+    const project = ACTIVE_PROJECTS_RAW[projectIdx]!;
     const taskIdx = Math.floor(rand() * TASK_TITLES.length);
     const dayOffset = Math.floor(rand() * 5);
     const hours = Math.min(remaining, Math.round((1 + rand() * 5) * 10) / 10);
@@ -140,7 +213,6 @@ export function generateScheduleEntriesFor(
   return entries;
 }
 
-/** All schedule entries across all PS resources and all 12 visible weeks. */
 export function generateAllScheduleEntries(): ScheduleEntry[] {
   const cells = generateUtilizationCells();
   const all: ScheduleEntry[] = [];
@@ -155,7 +227,10 @@ export function generateAllScheduleEntries(): ScheduleEntry[] {
 
 export function projectName(projectId: number | null): string {
   if (projectId == null) return '(no project)';
-  return PROJECTS.find((p) => p.id === projectId)?.name ?? `Project ${projectId}`;
+  const active = DUMMY_ACTIVE_PROJECTS.find((p) => p.autotask_id === projectId);
+  if (active) return active.name;
+  const pipeline = DUMMY_PIPELINE.find((p) => p.autotask_id === projectId);
+  return pipeline?.name ?? `Project ${projectId}`;
 }
 
 export function taskTitle(taskId: number | null): string {
@@ -164,7 +239,111 @@ export function taskTitle(taskId: number | null): string {
   return TASK_TITLES[idx] ?? `Task ${taskId}`;
 }
 
-export const DUMMY_OVERRIDES: WeeklyOverride[] = [];
+export const DUMMY_OVERRIDES: WeeklyOverride[] = [
+  // Pre-seed one pending approval to demonstrate the queue
+  {
+    id: 'seed-1',
+    resource_id: 1004,
+    week_start_et: getNext12Weeks()[6]!,
+    pto_hours: 40,
+    unavailable_hours: 0,
+    note: 'Family vacation',
+    approval_status: 'pending',
+    requires_approval_reason: 'PTO > 40h triggers director approval',
+  },
+];
+
+// ─── TASKS (for slip risk) ───────────────────────────────────────────────────
+export const DUMMY_TASKS: Task[] = (() => {
+  const out: Task[] = [];
+  let taskId = 60000;
+  for (const proj of DUMMY_ACTIVE_PROJECTS) {
+    const rand = seeded(proj.autotask_id);
+    const taskCount = 4 + Math.floor(rand() * 4);
+    for (let i = 0; i < taskCount; i++) {
+      const dueOffset = Math.floor((rand() - 0.3) * 60);
+      const due = new Date();
+      due.setDate(due.getDate() + dueOffset);
+      const isOverdue = dueOffset < 0 && rand() < 0.6;
+      out.push({
+        autotask_id: taskId++,
+        project_id: proj.autotask_id,
+        title: TASK_TITLES[i % TASK_TITLES.length]!,
+        assigned_resource_id: DUMMY_RESOURCES[i % DUMMY_RESOURCES.length]!.autotask_id,
+        estimated_hours: Math.round(8 + rand() * 32),
+        status: isOverdue ? 'In Progress' : rand() < 0.3 ? 'Complete' : 'In Progress',
+        due_date: due.toISOString().slice(0, 10),
+        is_overdue: isOverdue,
+      });
+    }
+  }
+  return out;
+})();
+
+// ─── SKILLS ──────────────────────────────────────────────────────────────────
+export const DUMMY_SKILLS: Skill[] = [
+  { id: 'sk-m365',     name: 'Microsoft 365',           category: 'Microsoft 365' },
+  { id: 'sk-exchange', name: 'Exchange Online',         category: 'Microsoft 365' },
+  { id: 'sk-teams',    name: 'Teams Voice',             category: 'Microsoft 365' },
+  { id: 'sk-ad',       name: 'Active Directory / Entra', category: 'Identity' },
+  { id: 'sk-sso',      name: 'SSO / SAML',              category: 'Identity' },
+  { id: 'sk-cisco',    name: 'Cisco Routing/Switching', category: 'Networking' },
+  { id: 'sk-meraki',   name: 'Meraki SD-WAN',           category: 'Networking' },
+  { id: 'sk-fw',       name: 'Firewall (Palo / Fortinet)', category: 'Security' },
+  { id: 'sk-soc',      name: 'SOC Monitoring',          category: 'Security' },
+  { id: 'sk-azure',    name: 'Azure',                   category: 'Cloud' },
+  { id: 'sk-aws',      name: 'AWS',                     category: 'Cloud' },
+  { id: 'sk-veeam',    name: 'Veeam',                   category: 'Backup' },
+  { id: 'sk-intune',   name: 'Intune / MDM',            category: 'Endpoint' },
+];
+
+const SKILL_DISTRIBUTIONS: Record<number, Array<[string, ResourceSkill['proficiency'], boolean]>> = {
+  1000: [['sk-m365','expert',true], ['sk-exchange','expert',true], ['sk-ad','proficient',false], ['sk-azure','proficient',true]],
+  1001: [['sk-cisco','expert',true], ['sk-meraki','expert',true], ['sk-fw','proficient',true]],
+  1002: [['sk-m365','proficient',false], ['sk-intune','expert',true], ['sk-teams','proficient',false]],
+  1003: [['sk-ad','expert',true], ['sk-sso','expert',true], ['sk-azure','proficient',false], ['sk-m365','proficient',false]],
+  1004: [['sk-fw','expert',true], ['sk-soc','expert',true], ['sk-meraki','proficient',false]],
+  1005: [['sk-veeam','expert',true], ['sk-azure','proficient',false], ['sk-aws','learning',false]],
+  1006: [['sk-azure','expert',true], ['sk-aws','expert',true], ['sk-m365','proficient',false], ['sk-ad','expert',true]],
+  1007: [['sk-m365','proficient',false]],
+};
+
+export const DUMMY_RESOURCE_SKILLS: ResourceSkill[] = Object.entries(SKILL_DISTRIBUTIONS).flatMap(
+  ([rid, skills]) =>
+    skills.map(([skill_id, proficiency, certified]) => {
+      const expires = certified ? new Date() : null;
+      if (expires) expires.setMonth(expires.getMonth() + 3 + Math.floor(Math.random() * 18));
+      return {
+        resource_id: Number(rid),
+        skill_id,
+        proficiency,
+        certified,
+        cert_expires_on: expires ? expires.toISOString().slice(0, 10) : undefined,
+      };
+    }),
+);
+
+export const DUMMY_PROJECT_REQUIRED_SKILLS: ProjectRequiredSkill[] = [
+  { project_id: 5001, skill_id: 'sk-m365',     weight: 1.0 },
+  { project_id: 5001, skill_id: 'sk-exchange', weight: 0.8 },
+  { project_id: 5002, skill_id: 'sk-fw',       weight: 1.0 },
+  { project_id: 5002, skill_id: 'sk-soc',      weight: 0.7 },
+  { project_id: 5003, skill_id: 'sk-cisco',    weight: 1.0 },
+  { project_id: 5003, skill_id: 'sk-meraki',   weight: 0.7 },
+  { project_id: 5004, skill_id: 'sk-veeam',    weight: 1.0 },
+  { project_id: 5004, skill_id: 'sk-azure',    weight: 0.6 },
+  { project_id: 5005, skill_id: 'sk-m365',     weight: 1.0 },
+  { project_id: 5005, skill_id: 'sk-ad',       weight: 0.5 },
+  // Pipeline
+  { project_id: 9001, skill_id: 'sk-ad',       weight: 1.0 },
+  { project_id: 9001, skill_id: 'sk-sso',      weight: 1.0 },
+  { project_id: 9001, skill_id: 'sk-azure',    weight: 0.7 },
+  { project_id: 9002, skill_id: 'sk-veeam',    weight: 0.5 },
+  { project_id: 9003, skill_id: 'sk-ad',       weight: 1.0 },
+  { project_id: 9004, skill_id: 'sk-veeam',    weight: 1.0 },
+  { project_id: 9005, skill_id: 'sk-m365',     weight: 1.0 },
+  { project_id: 9006, skill_id: 'sk-cisco',    weight: 1.0 },
+];
 
 export const DUMMY_SYNC_RUNS = [
   { id: 'r1', started_at: hoursAgo(0), status: 'success', resources: 14, projects: 47, tasks: 312, schedule_entries: 1184, time_entries: 902 },
@@ -192,9 +371,6 @@ export const DUMMY_STATUS_MAPPINGS = [
   { entity_type: 'task',    autotask_status: 'Complete',               app_bucket: 'complete', counts_toward_utilization: false },
 ];
 
-// ─── Pipeline projects (On Hold + Opportunity + Discovery) ──────────────────
-// Target months are anchored to "today" so the forecast strip lines up
-// regardless of when the preview is run.
 function monthOffset(months: number): string {
   const d = new Date();
   d.setMonth(d.getMonth() + months, 1);
@@ -205,80 +381,80 @@ export const DUMMY_PIPELINE: PipelineProject[] = [
   {
     autotask_id: 9001,
     name: 'Acme Phase 2 — Identity Modernization',
-    account_id: 1,
-    account_name: 'Acme Industries',
+    account_id: 1, account_name: 'Acme Industries',
     status: 'Opportunity - On Track',
-    estimated_hours: 240,
-    start_date: null,
-    end_date: null,
+    estimated_hours: 240, budget_hours: 240, hours_delivered: 0,
+    start_date: null, end_date: null, committed_end_date: null,
+    contract_type: 'fixed_fee', contract_value: 42000,
     target_month: monthOffset(0),
     next_action: 'Send updated SOW',
     last_client_contact: daysAgo(4),
+    win_probability: 0.75,
   },
   {
     autotask_id: 9002,
     name: 'Globex Server Refresh',
-    account_id: 2,
-    account_name: 'Globex Corp',
+    account_id: 2, account_name: 'Globex Corp',
     status: 'On Hold',
-    estimated_hours: 80,
-    start_date: null,
-    end_date: null,
+    estimated_hours: 80, budget_hours: 80, hours_delivered: 0,
+    start_date: null, end_date: null, committed_end_date: null,
+    contract_type: 'time_and_materials', contract_value: 0,
     target_month: monthOffset(0),
     next_action: 'Re-engage CFO on budget',
     last_client_contact: daysAgo(21),
+    win_probability: 0.30,
   },
   {
     autotask_id: 9003,
     name: 'Initech AD Migration',
-    account_id: 3,
-    account_name: 'Initech',
+    account_id: 3, account_name: 'Initech',
     status: 'Discovery',
-    estimated_hours: 120,
-    start_date: null,
-    end_date: null,
+    estimated_hours: 120, budget_hours: 120, hours_delivered: 0,
+    start_date: null, end_date: null, committed_end_date: null,
+    contract_type: 'fixed_fee', contract_value: 21000,
     target_month: monthOffset(1),
     next_action: 'Discovery workshop scheduled',
     last_client_contact: daysAgo(2),
+    win_probability: 0.60,
   },
   {
     autotask_id: 9004,
     name: 'Hooli Backup Modernization (Phase 2)',
-    account_id: 4,
-    account_name: 'Hooli',
+    account_id: 4, account_name: 'Hooli',
     status: 'Opportunity - Off Track',
-    estimated_hours: 180,
-    start_date: null,
-    end_date: null,
+    estimated_hours: 180, budget_hours: 180, hours_delivered: 0,
+    start_date: null, end_date: null, committed_end_date: null,
+    contract_type: 'time_and_materials', contract_value: 0,
     target_month: monthOffset(1),
     next_action: 'Need updated requirements from IT director',
     last_client_contact: daysAgo(31),
+    win_probability: 0.20,
   },
   {
     autotask_id: 9005,
     name: 'Pied Piper M365 Tenant Build',
-    account_id: 5,
-    account_name: 'Pied Piper',
+    account_id: 5, account_name: 'Pied Piper',
     status: 'Opportunity - On Track',
-    estimated_hours: 160,
-    start_date: null,
-    end_date: null,
+    estimated_hours: 160, budget_hours: 160, hours_delivered: 0,
+    start_date: null, end_date: null, committed_end_date: null,
+    contract_type: 'fixed_fee', contract_value: 28000,
     target_month: monthOffset(2),
     next_action: 'Awaiting executed MSA',
     last_client_contact: daysAgo(6),
+    win_probability: 0.85,
   },
   {
     autotask_id: 9006,
     name: 'Acme Networking Refresh',
-    account_id: 1,
-    account_name: 'Acme Industries',
+    account_id: 1, account_name: 'Acme Industries',
     status: 'On Hold',
-    estimated_hours: 60,
-    start_date: null,
-    end_date: null,
+    estimated_hours: 60, budget_hours: 60, hours_delivered: 0,
+    start_date: null, end_date: null, committed_end_date: null,
+    contract_type: 'time_and_materials', contract_value: 0,
     target_month: monthOffset(2),
     next_action: 'Hardware lead time blocking start',
     last_client_contact: daysAgo(12),
+    win_probability: 0.40,
   },
 ];
 
@@ -286,4 +462,73 @@ function daysAgo(d: number): string {
   const dt = new Date();
   dt.setDate(dt.getDate() - d);
   return dt.toISOString().slice(0, 10);
+}
+
+// ─── Integrations ────────────────────────────────────────────────────────────
+export const DUMMY_INTEGRATIONS: Integration[] = [
+  { id: 'microsoft_graph', status: 'unconfigured' },
+  { id: 'resend',          status: 'unconfigured' },
+  { id: 'anthropic',       status: 'unconfigured' },
+];
+
+// ─── AI canned responses ─────────────────────────────────────────────────────
+// In production, /ai routes through Anthropic with tool definitions over the
+// Postgres schema. For preview these are pattern-matched from the user query.
+export function simulateAiResponse(query: string): AiMessage {
+  const q = query.toLowerCase();
+  const id = `m-${Date.now()}`;
+  const created_at = new Date().toISOString();
+
+  if (q.includes('summar') || q.includes('this week') || q.includes('what changed')) {
+    return {
+      id, role: 'assistant', created_at,
+      content: [
+        '**Capacity summary — week of ' + getNext12Weeks()[0] + '**',
+        '',
+        '• 2 engineers projected over 110% next 2 weeks (Sarah Chen, Aisha Okafor).',
+        '• Pipeline coverage for the current month is **133%** — capacity is the bottleneck.',
+        '• Globex Server Refresh has been on hold 21 days; CFO budget conversation is the open item.',
+        '• Acme M365 Migration is at 75% of budget hours with ~3 weeks of timeline remaining (on pace).',
+        '• 1 PTO request pending director approval (James Brennan, 40h, week of ' + getNext12Weeks()[6] + ').',
+      ].join('\n'),
+    };
+  }
+
+  if (q.includes('60h') || q.includes('60 h') || q.includes('security') || q.includes('starting')) {
+    return {
+      id, role: 'assistant', created_at,
+      content: [
+        '**3 candidates for a 60h security project starting June 8:**',
+        '',
+        '1. **Elena Vasquez** — 22h slack across the window, expert in Firewall + SOC, certified.',
+        '2. **Marcus Rodriguez** — 18h slack, expert in Cisco/Meraki, also certified in Firewall.',
+        '3. **Aisha Okafor** — has the skills (Azure, AD) but already at 105% — would require rebalancing.',
+        '',
+        'Want me to draft an allocation? *(Scheduler is v1.5 — preview only.)*',
+      ].join('\n'),
+    };
+  }
+
+  if (q.includes('overload') || q.includes('overbook') || q.includes('over 100')) {
+    return {
+      id, role: 'assistant', created_at,
+      content: [
+        '**Overbooked engineers (next 4 weeks):**',
+        '',
+        '• **Sarah Chen** — 122% week of ' + getNext12Weeks()[1] + ', driver: Acme M365 cutover (28h).',
+        '• **Aisha Okafor** — 118% week of ' + getNext12Weeks()[2] + ', driver: 3 concurrent Azure projects.',
+        '',
+        'Suggested rebalancing: move 8h of Acme documentation from Sarah to David Kim (current util 62%).',
+      ].join('\n'),
+    };
+  }
+
+  return {
+    id, role: 'assistant', created_at,
+    content:
+      "I don't have enough context for that yet. In production I'll have tools over the Postgres " +
+      'schema (resources, projects, schedule, overrides, snapshots) and can answer most capacity, ' +
+      'project, and pipeline questions. Try: *"Summarize this week"*, *"Who has space for a 60h ' +
+      'project starting June 8?"*, or *"Who is overbooked in the next 4 weeks?"*',
+  };
 }

@@ -139,6 +139,34 @@ The sync's pull order (resources → projects → tasks → schedule_entries →
 
 ---
 
+## 4.5 PM feature set — preview shipped, production roadmap
+
+Per Andy's 2026-04-29 directive ("ship everything now"), the senior-PM feature set is implemented in preview against dummy data so the team can react before infra is provisioned. Each item splits into a **preview** state (working in `/preview` with dummy data) and a **production** state (real wiring + integration).
+
+| Feature | Preview status | Production wire-in |
+|---|---|---|
+| Project margin / burn-vs-budget | Live on `/projects` against seeded budgets, hours delivered, contract values | Sync `autotask_projects.estimated_hours`, contract value, blended rates from Autotask Contracts; refresh `hours_delivered` from `autotask_time_entries` aggregate |
+| Utilization vs target | Live on `/` heatmap row + `/trends` per-engineer | Set `target_billable_pct` per resource on Admin or via Autotask custom field |
+| Revenue forecast | Live on `/pipeline` weighted by `win_probability` | `win_probability` from Autotask Opportunity field if available, otherwise admin-managed |
+| Slip risk | Live on `/projects` slip-risk panel | `is_overdue` computed from `tasks.due_date < now() AND status != 'Complete'`; scope-change detection from sync diffs |
+| Client exposure | Live on `/`, `/projects` banner | Same data source — already covered |
+| Skill matrix | Live on `/skills` with seeded data | Manual seed via Admin UI; long-term: Autotask Skills entity if PSA exposes it |
+| Trend lines (90d) | Live on `/trends` against seeded snapshots | Nightly job populates `utilization_snapshots` from schedule + time entries |
+| PTO/OOO M365 sync | Stub button on `/overrides` simulates 4-step progress | Microsoft Graph delegated permissions, OAuth flow, `Calendar.Read` + `MailboxSettings.Read`; OOO blocks become `weekly_overrides` rows tagged `[M365 sync]` |
+| Weekly digest email | Live render on `/digest` against current data | Resend API; scheduled Edge Function runs every Mon 7am ET; recipients managed in `integrations.resend.config` |
+| Approval workflow | Live on `/approvals`; PTO > 40h flips to pending; pending edits don't shift heatmap | RPC sets `approval_status='pending'` and notifies director via Resend; director clicks magic link to approve |
+| Personal forecast | Live on `/me` with identity toggle | RLS gate on `app_users.linked_resource_id`; remove identity toggle in production |
+| Rebalancing suggestions | Live below heatmap; greedy fill from overload→slack | Same algorithm; eventual upgrade to Anthropic-backed reasoning under `/assistant` |
+| Assistant — NL query | Pattern-matched canned responses | Anthropic Messages API + tool definitions over the schema (resources, projects, schedule, snapshots) |
+| Assistant — week summarize | Same | Same |
+
+**Production rollout sequencing.** v1 pilot (2026-05-13) ships everything in preview mode for the team to evaluate. Production wire-in lands in two waves:
+
+- **Wave 1 (May 14 – Jun 7).** Trends snapshot job, target-billable, project budget/contract sync, win_probability, skill matrix admin seed, approval workflow with email, Resend integration, weekly digest email. No new external SDKs beyond Resend.
+- **Wave 2 (Jun 8 – Jul 5).** Microsoft Graph integration (OAuth + delegation + token refresh), Anthropic-backed assistant + auto-summarize, scheduler v1 (Tier 1 greedy fill).
+
+Both waves require a security review of the new external integrations and DPA verification before activation.
+
 ## 5. Post-pilot backlog (NOT in v1)
 
 Captured here so they don't leak into the timeline.
@@ -173,3 +201,6 @@ Every meaningful trade-off lands here so future Claude Code sessions don't re-li
 | 2026-04-29 | Pipeline = `autotask_projects` filtered by status (`On Hold`, `Opportunity - On Track`, `Opportunity - Off Track`, `Discovery`); no separate Opportunities entity | Andy: pulling status from existing project sync keeps the pipeline data flow on rails managers already use. |
 | 2026-04-29 | Calendar "free" threshold = day utilization < 50% (i.e., < 4h of 8h scheduled) | Andy: calls a person available if they have meaningful slack, not only if zero-booked. |
 | 2026-04-29 | Scheduler deferred to v1.5 | Avoids overloading the 2026-05-13 pilot; built once we have real sync history. |
+| 2026-04-29 | PM feature set shipped to **preview** for May 13 pilot review; production wire-in split into two waves | Per Andy: ship everything so stakeholders can react. Preview decouples UI/UX validation from external integration risk. |
+| 2026-04-29 | PTO approval threshold = 40h | Above one work-week of PTO routes to director sign-off. Pending edits don't move the heatmap. |
+| 2026-04-29 | Resend selected for outbound email; Anthropic for AI; Microsoft Graph for OOO sync | Each registered in `integrations` table; status tracked and visible on Admin page. |

@@ -3,25 +3,34 @@ import type { PipelineStatus } from '../lib/types';
 
 export function PipelinePage() {
   const { pipeline, forecast } = usePipelineData();
-
   const today = new Date().toISOString().slice(0, 10);
+
+  const weightedRevenueByMonth = new Map<string, number>();
+  for (const p of pipeline) {
+    weightedRevenueByMonth.set(
+      p.target_month,
+      (weightedRevenueByMonth.get(p.target_month) ?? 0) + p.contract_value * p.win_probability,
+    );
+  }
 
   return (
     <section>
       <h1>Pipeline</h1>
       <p className="muted">
         Projects with status <em>On Hold</em>, <em>Discovery</em>, or any{' '}
-        <em>Opportunity</em> bucket. Mapped from <code>autotask_projects.status</code>{' '}
-        via <code>status_mappings</code>; configurable on the Admin page.
+        <em>Opportunity</em> bucket. Coverage is weighted by win probability so the forecast
+        reflects expected demand, not fantasy demand.
       </p>
 
-      <h2>Forecast — capacity vs pipeline</h2>
+      <h2>Forecast — capacity vs weighted pipeline</h2>
       <table className="data-table forecast-table">
         <thead>
           <tr>
             <th>Month</th>
             <th>Free team hours</th>
-            <th>Pipeline hours</th>
+            <th>Pipeline (unweighted)</th>
+            <th>Pipeline (weighted)</th>
+            <th>Expected revenue</th>
             <th>Coverage</th>
             <th>Read</th>
           </tr>
@@ -30,11 +39,14 @@ export function PipelinePage() {
           {forecast.map((f) => {
             const pct = Math.round(f.coverageRatio * 100);
             const read = readForecast(f.coverageRatio);
+            const expectedRevenue = weightedRevenueByMonth.get(f.month) ?? 0;
             return (
               <tr key={f.month}>
                 <td>{f.label}</td>
                 <td>{f.freeHours}h</td>
-                <td>{f.pipelineHours}h</td>
+                <td className="muted">{f.pipelineHoursUnweighted}h</td>
+                <td>{f.pipelineHoursWeighted}h</td>
+                <td>{fmtUsd(expectedRevenue)}</td>
                 <td>
                   <span className={`pill pill-${read.tone}`}>
                     {Number.isFinite(f.coverageRatio) ? `${pct}%` : '—'}
@@ -55,6 +67,8 @@ export function PipelinePage() {
             <th>Client</th>
             <th>Status</th>
             <th>Est. hours</th>
+            <th>Contract value</th>
+            <th>Win prob</th>
             <th>Target month</th>
             <th>Last contact</th>
             <th>Next action</th>
@@ -69,6 +83,10 @@ export function PipelinePage() {
                 <td>{p.account_name ?? '—'}</td>
                 <td><StatusPill status={p.status} /></td>
                 <td>{p.estimated_hours}h</td>
+                <td>{p.contract_value > 0 ? fmtUsd(p.contract_value) : <span className="muted">T&amp;M</span>}</td>
+                <td>
+                  <ProbBar value={p.win_probability} />
+                </td>
                 <td>{formatMonth(p.target_month)}</td>
                 <td className={stale ? 'cell-warn' : ''}>
                   {p.last_client_contact ?? '—'}
@@ -81,6 +99,20 @@ export function PipelinePage() {
         </tbody>
       </table>
     </section>
+  );
+}
+
+function ProbBar({ value }: { value: number }) {
+  const pct = Math.round(value * 100);
+  const tone = value >= 0.7 ? 'green' : value >= 0.4 ? 'yellow' : 'orange';
+  return (
+    <div className="prob-bar" title={`${pct}% probability`}>
+      <div
+        className="prob-bar-fill"
+        style={{ width: `${pct}%`, background: `var(--util-${tone})` }}
+      />
+      <span>{pct}%</span>
+    </div>
   );
 }
 
@@ -110,4 +142,8 @@ function daysBefore(iso: string, days: number): string {
   const d = new Date(iso);
   d.setDate(d.getDate() - days);
   return d.toISOString().slice(0, 10);
+}
+
+function fmtUsd(n: number): string {
+  return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 }

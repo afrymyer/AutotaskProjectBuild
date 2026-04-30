@@ -338,14 +338,21 @@ A Postgres trigger on first `auth.jwt()`-bearing request inserts an `app_users` 
 
 | Route | Purpose |
 |---|---|
-| `/` | Heatmap — rows = resources, columns = next 12 weeks, cells colored by utilization |
+| `/` | Heatmap — utilization × resources × 12 weeks; per-row variance vs personal target; client-exposure banner; rebalancing suggestions |
 | `/calendar` | Team availability calendar — day-level "X of N free" (free = <50% of 8h day) |
-| `/pipeline` | Pipeline view — projects with statuses bucketed as `pipeline` in `status_mappings`; month-by-month forecast of free hours vs pipeline hours |
-| `/scheduler` | **v1.5 stub** — capacity-aware project scheduling; placeholder in v1 |
+| `/projects` | Active projects — margin per engagement, burn-vs-budget, slip risk, client-exposure flags |
+| `/pipeline` | Pipeline — projects bucketed as `pipeline`; month-by-month forecast (free hours vs **win-probability-weighted** pipeline) and expected revenue |
+| `/trends` | 90-day backward trend lines — team rolling utilization + per-engineer sparklines, variance vs target |
+| `/skills` | Skill matrix — capability tags per resource, project required skills, certification expiry alerts |
+| `/scheduler` | **v1.5 stub** — capacity-aware project scheduling |
 | `/resource/:id/week/:weekStart` | Drilldown — schedule entries + tasks + projects driving that cell |
-| `/overrides` | Override editor — table of resources × weeks for PTO + unavailable hours |
-| `/admin` | Status mappings, weekly capacity defaults, sync history |
-| `/export` | CSV export trigger (Director of Ops + vCIO consumers) |
+| `/overrides` | Override editor (PTO + unavailable hours); M365 PTO sync; pending-approval pill |
+| `/approvals` | Director sign-off queue for overrides above the configured PTO threshold |
+| `/me` | Personal forecast view; preview supports identity toggle, production gates by `app_users.linked_resource_id` + RLS |
+| `/assistant` | NL queries + week summarization (preview-simulated; production via Anthropic API + tool-calling) |
+| `/digest` | Weekly status email preview (production: Resend, scheduled Monday 7am ET) |
+| `/admin` | Status mappings, integrations health, sync history |
+| `/export` | CSV export (Director of Ops + vCIO consumers) |
 
 ### 6.1 Pipeline derivation
 
@@ -380,6 +387,37 @@ State management: `@tanstack/react-query` for Supabase reads. No global store ne
 - **Migrations:** `supabase db push` from CI on merge to `main`. Forward-only; rollback is a new migration.
 
 ---
+
+## 8.5 PM-feature schema (migration 0005)
+
+The senior-PM feature set adds the following:
+
+**Resources**
+- `target_billable_pct numeric(4,3)` — utilization target per engineer (default 0.75).
+- `blended_rate numeric(8,2)` — loaded $/hr, used for project margin math.
+- `app_role` — `engineer | senior | principal | manager`.
+
+**Projects**
+- `budget_hours`, `contract_type` (`time_and_materials | fixed_fee | retainer`), `contract_value`, `committed_end_date`, `hours_delivered` (denormalized aggregate refreshed by sync).
+- `win_probability numeric(4,3)` — populated on pipeline projects; drives the weighted forecast.
+
+**Skills**
+- `skills(id, name, category)`.
+- `resource_skills(resource_id, skill_id, proficiency, certified, cert_expires_on)`.
+- `project_required_skills(project_id, skill_id, weight)`.
+
+**Snapshots**
+- `utilization_snapshots(taken_on, resource_id, week_start_et, scheduled, delivered, capacity)` — populated nightly from `autotask_schedule_entries` + `autotask_time_entries`. Drives `/trends` and is the only place 90-day-backward signal lives.
+
+**Approval workflow**
+- `weekly_overrides.approval_status` (`auto_approved | pending | approved | rejected`) + `requires_approval_reason`, `approved_by`, `approved_at`.
+- The `upsert_weekly_override` RPC sets `approval_status = 'pending'` when `pto_hours > 40`. Pending edits don't shift the heatmap until a director signs off.
+
+**AI**
+- `ai_conversations`, `ai_messages` for the `/assistant` chat history.
+
+**Integrations**
+- `integrations(id, status, last_health_check_at, last_error_message)` for `microsoft_graph`, `resend`, `anthropic`.
 
 ## 9. Out of scope for v1
 

@@ -1,7 +1,7 @@
 import { useAdminData } from '../lib/data';
 
 export function AdminPage() {
-  const { syncRuns, statusMappings } = useAdminData();
+  const { syncRuns, statusMappings, integrations } = useAdminData();
   const recentFailures = syncRuns.slice(0, 3).filter((r) => r.status === 'failed').length;
   const banner = recentFailures >= 3 ? 'red' : null;
 
@@ -14,6 +14,30 @@ export function AdminPage() {
           ⚠ Sync has failed {recentFailures} consecutive runs. Investigate.
         </div>
       )}
+
+      <h2>Integrations</h2>
+      <table className="data-table">
+        <thead>
+          <tr>
+            <th>Integration</th>
+            <th>Status</th>
+            <th>Last health check</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {integrations.map((i) => (
+            <tr key={i.id}>
+              <td><code>{i.id}</code></td>
+              <td><span className={`pill pill-${integrationTone(i.status)}`}>{i.status}</span></td>
+              <td>{i.last_health_check_at ?? <span className="muted">—</span>}</td>
+              <td className="muted small">
+                {integrationDescription(i.id)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
 
       <h2>Sync history</h2>
       <table className="data-table">
@@ -46,7 +70,7 @@ export function AdminPage() {
       </table>
 
       <h2>Status mappings</h2>
-      <p className="muted">Maps Autotask status strings to app buckets used by the utilization view.</p>
+      <p className="muted">Maps Autotask status strings to app buckets used by the utilization view and pipeline.</p>
       <table className="data-table">
         <thead>
           <tr>
@@ -61,7 +85,7 @@ export function AdminPage() {
             <tr key={i}>
               <td>{m.entity_type}</td>
               <td>{m.autotask_status}</td>
-              <td>{m.app_bucket}</td>
+              <td><span className="pill pill-running">{m.app_bucket}</span></td>
               <td>{m.counts_toward_utilization ? 'Yes' : 'No'}</td>
             </tr>
           ))}
@@ -69,4 +93,24 @@ export function AdminPage() {
       </table>
     </section>
   );
+}
+
+function integrationTone(s: string): 'success' | 'partial' | 'failed' | 'running' {
+  if (s === 'configured') return 'success';
+  if (s === 'unconfigured') return 'partial';
+  if (s === 'error') return 'failed';
+  return 'running';
+}
+
+function integrationDescription(id: string): string {
+  switch (id) {
+    case 'microsoft_graph':
+      return 'Outlook OOO / PTO sync into weekly_overrides. Delegated user consent required.';
+    case 'resend':
+      return 'Outbound email for weekly digest and approval notifications.';
+    case 'anthropic':
+      return 'Powers the /assistant page with tool-calling over the Postgres schema.';
+    default:
+      return '';
+  }
 }

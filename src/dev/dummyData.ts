@@ -21,13 +21,11 @@ import type {
   WeeklyOverride,
 } from '../lib/types';
 
-const FIRST_NAMES = ['Sarah', 'Marcus', 'Priya', 'James', 'Elena', 'David', 'Aisha', 'Tom'];
-const LAST_NAMES = ['Chen', 'Rodriguez', 'Patel', 'Brennan', 'Vasquez', 'Kim', 'Okafor', 'Sullivan'];
-const ROLES: Resource['app_role'][] = [
-  'senior', 'principal', 'engineer', 'engineer', 'senior', 'engineer', 'principal', 'manager',
-];
-const RATES = [185, 220, 155, 155, 185, 155, 220, 240];
-const TARGETS = [0.80, 0.75, 0.80, 0.80, 0.80, 0.80, 0.70, 0.55];
+const FIRST_NAMES = ['Patrick', 'Tyler',   'Barend',  'Chris'];
+const LAST_NAMES  = ['Winters', 'Barrick',  'Lotriet', 'Kaschak'];
+const ROLES: Resource['app_role'][] = ['senior', 'engineer', 'principal', 'senior'];
+const RATES   = [185, 155, 220, 185];
+const TARGETS = [0.80, 0.80, 0.75, 0.80];
 
 export const DUMMY_RESOURCES: Resource[] = FIRST_NAMES.map((first, i) => ({
   autotask_id: 1000 + i,
@@ -243,7 +241,7 @@ export const DUMMY_OVERRIDES: WeeklyOverride[] = [
   // Pre-seed one pending approval to demonstrate the queue
   {
     id: 'seed-1',
-    resource_id: 1004,
+    resource_id: 1003,
     week_start_et: getNext12Weeks()[6]!,
     pto_hours: 40,
     unavailable_hours: 0,
@@ -297,15 +295,15 @@ export const DUMMY_SKILLS: Skill[] = [
   { id: 'sk-intune',   name: 'Intune / MDM',            category: 'Endpoint' },
 ];
 
+// 1000 Patrick Winters — senior · M365 + Exchange + Azure + AD generalist
+// 1001 Tyler Barrick    — engineer · network + security focus
+// 1002 Barend Lotriet   — principal · cloud / infrastructure
+// 1003 Chris Kaschak    — senior · endpoint + M365 + identity
 const SKILL_DISTRIBUTIONS: Record<number, Array<[string, ResourceSkill['proficiency'], boolean]>> = {
-  1000: [['sk-m365','expert',true], ['sk-exchange','expert',true], ['sk-ad','proficient',false], ['sk-azure','proficient',true]],
-  1001: [['sk-cisco','expert',true], ['sk-meraki','expert',true], ['sk-fw','proficient',true]],
-  1002: [['sk-m365','proficient',false], ['sk-intune','expert',true], ['sk-teams','proficient',false]],
-  1003: [['sk-ad','expert',true], ['sk-sso','expert',true], ['sk-azure','proficient',false], ['sk-m365','proficient',false]],
-  1004: [['sk-fw','expert',true], ['sk-soc','expert',true], ['sk-meraki','proficient',false]],
-  1005: [['sk-veeam','expert',true], ['sk-azure','proficient',false], ['sk-aws','learning',false]],
-  1006: [['sk-azure','expert',true], ['sk-aws','expert',true], ['sk-m365','proficient',false], ['sk-ad','expert',true]],
-  1007: [['sk-m365','proficient',false]],
+  1000: [['sk-m365','expert',true],     ['sk-exchange','expert',true], ['sk-ad','proficient',true],   ['sk-azure','proficient',true]],
+  1001: [['sk-cisco','expert',true],    ['sk-meraki','expert',true],   ['sk-fw','expert',true],       ['sk-soc','proficient',true]],
+  1002: [['sk-azure','expert',true],    ['sk-aws','expert',true],      ['sk-ad','expert',true],       ['sk-veeam','proficient',true]],
+  1003: [['sk-m365','expert',true],     ['sk-intune','expert',true],   ['sk-teams','proficient',true], ['sk-ad','proficient',false]],
 };
 
 export const DUMMY_RESOURCE_SKILLS: ResourceSkill[] = Object.entries(SKILL_DISTRIBUTIONS).flatMap(
@@ -346,11 +344,11 @@ export const DUMMY_PROJECT_REQUIRED_SKILLS: ProjectRequiredSkill[] = [
 ];
 
 export const DUMMY_SYNC_RUNS = [
-  { id: 'r1', started_at: hoursAgo(0), status: 'success', resources: 14, projects: 47, tasks: 312, schedule_entries: 1184, time_entries: 902 },
-  { id: 'r2', started_at: hoursAgo(1), status: 'success', resources: 14, projects: 47, tasks: 312, schedule_entries: 1184, time_entries: 901 },
-  { id: 'r3', started_at: hoursAgo(2), status: 'success', resources: 14, projects: 47, tasks: 311, schedule_entries: 1183, time_entries: 900 },
-  { id: 'r4', started_at: hoursAgo(3), status: 'partial', resources: 14, projects: 47, tasks: 311, schedule_entries: 0, time_entries: 0 },
-  { id: 'r5', started_at: hoursAgo(4), status: 'success', resources: 14, projects: 47, tasks: 310, schedule_entries: 1180, time_entries: 898 },
+  { id: 'r1', started_at: hoursAgo(0), status: 'success', resources: 4, projects: 31, tasks: 178, schedule_entries: 612, time_entries: 482 },
+  { id: 'r2', started_at: hoursAgo(1), status: 'success', resources: 4, projects: 31, tasks: 178, schedule_entries: 612, time_entries: 481 },
+  { id: 'r3', started_at: hoursAgo(2), status: 'success', resources: 4, projects: 31, tasks: 177, schedule_entries: 611, time_entries: 480 },
+  { id: 'r4', started_at: hoursAgo(3), status: 'partial', resources: 4, projects: 31, tasks: 177, schedule_entries: 0, time_entries: 0 },
+  { id: 'r5', started_at: hoursAgo(4), status: 'success', resources: 4, projects: 31, tasks: 176, schedule_entries: 608, time_entries: 478 },
 ];
 
 function hoursAgo(h: number): string {
@@ -485,11 +483,11 @@ export function simulateAiResponse(query: string): AiMessage {
       content: [
         '**Capacity summary — week of ' + getNext12Weeks()[0] + '**',
         '',
-        '• 2 engineers projected over 110% next 2 weeks (Sarah Chen, Aisha Okafor).',
+        '• 2 engineers projected over 110% next 2 weeks (Patrick Winters, Barend Lotriet).',
         '• Pipeline coverage for the current month is **133%** — capacity is the bottleneck.',
         '• Globex Server Refresh has been on hold 21 days; CFO budget conversation is the open item.',
         '• Acme M365 Migration is at 75% of budget hours with ~3 weeks of timeline remaining (on pace).',
-        '• 1 PTO request pending director approval (James Brennan, 40h, week of ' + getNext12Weeks()[6] + ').',
+        '• 1 PTO request pending director approval (Chris Kaschak, 40h, week of ' + getNext12Weeks()[6] + ').',
       ].join('\n'),
     };
   }
@@ -500,9 +498,9 @@ export function simulateAiResponse(query: string): AiMessage {
       content: [
         '**3 candidates for a 60h security project starting June 8:**',
         '',
-        '1. **Elena Vasquez** — 22h slack across the window, expert in Firewall + SOC, certified.',
-        '2. **Marcus Rodriguez** — 18h slack, expert in Cisco/Meraki, also certified in Firewall.',
-        '3. **Aisha Okafor** — has the skills (Azure, AD) but already at 105% — would require rebalancing.',
+        '1. **Tyler Barrick** — 22h slack across the window, expert in Firewall + SOC, certified.',
+        '2. **Barend Lotriet** — 18h slack, expert in Azure + AD, also certified.',
+        '3. **Patrick Winters** — has the skills (M365, Azure) but already at 105% — would require rebalancing.',
         '',
         'Want me to draft an allocation? *(Scheduler is v1.5 — preview only.)*',
       ].join('\n'),
@@ -515,10 +513,10 @@ export function simulateAiResponse(query: string): AiMessage {
       content: [
         '**Overbooked engineers (next 4 weeks):**',
         '',
-        '• **Sarah Chen** — 122% week of ' + getNext12Weeks()[1] + ', driver: Acme M365 cutover (28h).',
-        '• **Aisha Okafor** — 118% week of ' + getNext12Weeks()[2] + ', driver: 3 concurrent Azure projects.',
+        '• **Patrick Winters** — 122% week of ' + getNext12Weeks()[1] + ', driver: Acme M365 cutover (28h).',
+        '• **Barend Lotriet** — 118% week of ' + getNext12Weeks()[2] + ', driver: 3 concurrent Azure projects.',
         '',
-        'Suggested rebalancing: move 8h of Acme documentation from Sarah to David Kim (current util 62%).',
+        'Suggested rebalancing: move 8h of Acme documentation from Patrick to Chris Kaschak (current util 62%).',
       ].join('\n'),
     };
   }

@@ -52,16 +52,16 @@ export function OverridesPage() {
         window.clearInterval(interval);
         setM365Status('done');
         // Apply 2 simulated PTO blocks for the demo
-        if (resources[2] && resources[5]) {
+        if (resources[1] && resources[2]) {
           saveOverride({
-            resource_id: resources[2].autotask_id,
+            resource_id: resources[1].autotask_id,
             week_start_et: weeks[3]!,
             pto_hours: 8,
             unavailable_hours: 0,
             note: '[M365 sync] Outlook OOO',
           });
           saveOverride({
-            resource_id: resources[5].autotask_id,
+            resource_id: resources[2].autotask_id,
             week_start_et: weeks[5]!,
             pto_hours: 16,
             unavailable_hours: 0,

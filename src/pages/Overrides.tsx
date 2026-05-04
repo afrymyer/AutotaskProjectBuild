@@ -78,8 +78,8 @@ export function OverridesPage() {
     <section>
       <h1>Overrides — PTO &amp; unavailable hours</h1>
       <p className="muted">
-        Adjust per-resource per-week capacity. Edits over 40h PTO route to{' '}
-        <a href="/approvals">/approvals</a> for director sign-off and don't shift the heatmap
+        Adjust per-resource per-week capacity. Edits over 40h PTO route to the{' '}
+        <strong>Approvals</strong> tab for director sign-off and don't shift the heatmap
         until approved.
       </p>
 

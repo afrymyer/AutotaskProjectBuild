@@ -1,5 +1,8 @@
-import { Routes, Route, NavLink } from 'react-router-dom';
+import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import { SignedIn, SignedOut, RedirectToSignIn } from '@clerk/clerk-react';
+import { DashboardLayout } from './layouts/DashboardLayout';
+import { TeamLayout } from './layouts/TeamLayout';
+import { InsightsLayout } from './layouts/InsightsLayout';
 import { HeatmapPage } from './pages/Heatmap';
 import { CalendarPage } from './pages/Calendar';
 import { ProjectsPage } from './pages/Projects';
@@ -28,23 +31,10 @@ function Shell({ children }: { children: React.ReactNode }) {
       <header className="app-header">
         <div className="brand">Imix Projects</div>
         <nav>
-          <NavLink to="/" end>Heatmap</NavLink>
-          <NavLink to="/calendar">Calendar</NavLink>
-          <NavLink to="/projects">Projects</NavLink>
-          <NavLink to="/pipeline">Pipeline</NavLink>
-          <NavLink to="/trends">Trends</NavLink>
-          <NavLink to="/skills">Skills</NavLink>
-          <span className="nav-sep" />
-          <NavLink to="/overrides">Overrides</NavLink>
-          <NavLink to="/approvals">Approvals</NavLink>
-          <NavLink to="/me">Me</NavLink>
-          <span className="nav-sep" />
-          <NavLink to="/assistant">Assistant</NavLink>
-          <NavLink to="/digest">Digest</NavLink>
-          <NavLink to="/scheduler">Scheduler</NavLink>
-          <span className="nav-sep" />
+          <NavLink to="/dashboard">Dashboard</NavLink>
+          <NavLink to="/team">Team</NavLink>
+          <NavLink to="/insights">Insights</NavLink>
           <NavLink to="/admin">Admin</NavLink>
-          <NavLink to="/export">Export</NavLink>
         </nav>
       </header>
       <main className="app-main">{children}</main>
@@ -56,21 +46,56 @@ function Routed() {
   return (
     <Shell>
       <Routes>
-        <Route path="/" element={<HeatmapPage />} />
-        <Route path="/calendar" element={<CalendarPage />} />
-        <Route path="/projects" element={<ProjectsPage />} />
-        <Route path="/pipeline" element={<PipelinePage />} />
-        <Route path="/trends" element={<TrendsPage />} />
-        <Route path="/skills" element={<SkillsPage />} />
-        <Route path="/scheduler" element={<SchedulerPage />} />
-        <Route path="/resource/:resourceId/week/:weekStart" element={<DrilldownPage />} />
-        <Route path="/overrides" element={<OverridesPage />} />
-        <Route path="/approvals" element={<ApprovalsPage />} />
-        <Route path="/me" element={<MePage />} />
-        <Route path="/assistant" element={<AssistantPage />} />
-        <Route path="/digest" element={<DigestPage />} />
+        {/* Default landing */}
+        <Route path="/" element={<Navigate to="/dashboard/heatmap" replace />} />
+
+        {/* Dashboard group */}
+        <Route path="/dashboard" element={<DashboardLayout />}>
+          <Route index element={<Navigate to="heatmap" replace />} />
+          <Route path="heatmap"   element={<HeatmapPage />} />
+          <Route path="calendar"  element={<CalendarPage />} />
+          <Route path="projects"  element={<ProjectsPage />} />
+          <Route path="pipeline"  element={<PipelinePage />} />
+          <Route path="scheduler" element={<SchedulerPage />} />
+        </Route>
+
+        {/* Team group */}
+        <Route path="/team" element={<TeamLayout />}>
+          <Route index element={<Navigate to="overrides" replace />} />
+          <Route path="overrides" element={<OverridesPage />} />
+          <Route path="approvals" element={<ApprovalsPage />} />
+          <Route path="skills"    element={<SkillsPage />} />
+          <Route path="me"        element={<MePage />} />
+        </Route>
+
+        {/* Insights group */}
+        <Route path="/insights" element={<InsightsLayout />}>
+          <Route index element={<Navigate to="trends" replace />} />
+          <Route path="trends"    element={<TrendsPage />} />
+          <Route path="assistant" element={<AssistantPage />} />
+          <Route path="digest"    element={<DigestPage />} />
+          <Route path="export"    element={<ExportPage />} />
+        </Route>
+
+        {/* Admin (single page, no sub-tabs) */}
         <Route path="/admin" element={<AdminPage />} />
-        <Route path="/export" element={<ExportPage />} />
+
+        {/* Drilldown stays top-level — it's a deep view, not a sub-tab */}
+        <Route path="/resource/:resourceId/week/:weekStart" element={<DrilldownPage />} />
+
+        {/* Backwards-compatible redirects from the old flat URLs */}
+        <Route path="/calendar"  element={<Navigate to="/dashboard/calendar"  replace />} />
+        <Route path="/projects"  element={<Navigate to="/dashboard/projects"  replace />} />
+        <Route path="/pipeline"  element={<Navigate to="/dashboard/pipeline"  replace />} />
+        <Route path="/scheduler" element={<Navigate to="/dashboard/scheduler" replace />} />
+        <Route path="/overrides" element={<Navigate to="/team/overrides"      replace />} />
+        <Route path="/approvals" element={<Navigate to="/team/approvals"      replace />} />
+        <Route path="/skills"    element={<Navigate to="/team/skills"         replace />} />
+        <Route path="/me"        element={<Navigate to="/team/me"             replace />} />
+        <Route path="/trends"    element={<Navigate to="/insights/trends"     replace />} />
+        <Route path="/assistant" element={<Navigate to="/insights/assistant"  replace />} />
+        <Route path="/digest"    element={<Navigate to="/insights/digest"     replace />} />
+        <Route path="/export"    element={<Navigate to="/insights/export"     replace />} />
       </Routes>
     </Shell>
   );

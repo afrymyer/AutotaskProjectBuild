@@ -42,7 +42,7 @@ export function HeatmapPage() {
             </span>
           ))}
           {' '}
-          <Link to="/projects" style={{ marginLeft: 8 }}>review →</Link>
+          <Link to="/dashboard/projects" style={{ marginLeft: 8 }}>review →</Link>
         </div>
       )}
 

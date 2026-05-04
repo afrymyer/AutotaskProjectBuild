@@ -39,12 +39,25 @@ export const DUMMY_RESOURCES: Resource[] = FIRST_NAMES.map((first, i) => ({
   app_role: ROLES[i] ?? 'engineer',
 }));
 
+// Real active projects from the IMIX export. All currently T&M / $0 contract
+// value per the source data — the Projects margin column will read "T&M" for
+// these. Add a contract_value if you want margin math on a specific row.
 const ACTIVE_PROJECTS_RAW = [
-  { id: 5001, name: 'Acme M365 Migration',         account: 'Acme Industries',   contract_type: 'fixed_fee',         budget_hours: 320, value: 56000, end: 22 },
-  { id: 5002, name: 'Globex Security Hardening',   account: 'Globex Corp',       contract_type: 'time_and_materials', budget_hours: 180, value: 0,     end: 60 },
-  { id: 5003, name: 'Initech Network Refresh',     account: 'Initech',           contract_type: 'fixed_fee',         budget_hours: 240, value: 42000, end: 45 },
-  { id: 5004, name: 'Hooli Backup Modernization',  account: 'Hooli',             contract_type: 'time_and_materials', budget_hours: 200, value: 0,     end: 75 },
-  { id: 5005, name: 'Pied Piper SharePoint Rollout', account: 'Pied Piper',      contract_type: 'fixed_fee',         budget_hours: 160, value: 28000, end: 30 },
+  // status: New
+  { id: 7001, name: 'Furniture First - Q2 MFA on Workstations',           account: 'Furniture First',                              start: '2026-04-01', budget: 18.55, delivered: 0.47,  status: 'New' },
+  { id: 7002, name: 'Homeland at Home - Q2 MFA for Workstations',         account: 'Homeland at Home',                             start: '2026-04-01', budget: 18.55, delivered: 0.48,  status: 'New' },
+  { id: 7003, name: 'Homeland at Home - Q2 Last Pass Implementation',     account: 'Homeland at Home',                             start: '2026-04-01', budget: 26.05, delivered: 0.37,  status: 'New' },
+  { id: 7004, name: 'Homeland Center - Q2 MFA for Workstations',          account: 'Homeland Center',                              start: '2026-04-01', budget: 18.55, delivered: 0.45,  status: 'New' },
+  { id: 7005, name: 'PA Options - Q2 MFA for Workstations',               account: 'PA Options for Wellness Inc',                  start: '2026-04-01', budget: 18.55, delivered: 0.48,  status: 'New' },
+  { id: 7006, name: 'PDAA - Q2 Last Pass Implementation',                 account: 'Pennsylvania District Attorneys Assoc.',       start: '2026-04-01', budget: 18.55, delivered: 0.30,  status: 'New' },
+  { id: 7007, name: 'CCW - Q3 Server Replacement',                        account: 'Cunningham, Chernicoff, & Warshawsky, P.C',    start: '2026-02-19', budget: 19.55, delivered: 2.72,  status: 'New' },
+  { id: 7008, name: 'Capozzi - Q2 Hardening and Quarantine',              account: 'Capozzi Adler, PC',                            start: '2026-04-06', budget: 12.30, delivered: 1.35,  status: 'New' },
+  // status: Planning - On Track
+  { id: 7009, name: 'Driving Force - Allentown Acquistion',               account: 'Driving Force Collision - Allentown',          start: '2026-04-08', budget: 88.25, delivered: 12.53, status: 'Planning - On Track' },
+  // status: Execution - On Track
+  { id: 7010, name: 'TFEC - Q2 Last Pass Implementation',                 account: 'The Foundation for Enhancing Communities',     start: '2026-03-30', budget: 15.40, delivered: 4.88,  status: 'Execution - On Track' },
+  { id: 7011, name: 'Capozzi Adler - Q2 Office Move Camp Hill',           account: 'Capozzi Adler, PC',                            start: '2026-03-02', budget: 23.00, delivered: 11.37, status: 'Execution - On Track' },
+  { id: 7012, name: 'Capozzi Adler - Q1 Network Refresh',                 account: 'Capozzi Adler, PC',                            start: '2026-01-01', budget: 25.25, delivered: 6.80,  status: 'Execution - On Track' },
 ];
 
 const TASK_TITLES = [
@@ -93,25 +106,28 @@ function seeded(seed: number): () => number {
 }
 
 // ─── ACTIVE PROJECTS ─────────────────────────────────────────────────────────
+// committed_end_date is synthesized as start + max(60d, hours×4) so the burn
+// math reads usefully — the Autotask end_date in the source data is a long
+// contract horizon (often 9/2027), not an expected delivery date.
 export const DUMMY_ACTIVE_PROJECTS: Project[] = ACTIVE_PROJECTS_RAW.map((p, i) => {
-  const rand = seeded(p.id);
-  const consumed = Math.round(p.budget_hours * (0.3 + rand() * 0.6));
-  const end = new Date();
-  end.setDate(end.getDate() + p.end);
+  const start = new Date(p.start);
+  const deliveryDays = Math.max(60, Math.round(p.budget * 4));
+  const committed = new Date(start);
+  committed.setDate(start.getDate() + deliveryDays);
   return {
     autotask_id: p.id,
     name: p.name,
-    status: 'In Progress',
+    status: p.status,
     account_id: i + 1,
     account_name: p.account,
-    start_date: daysAgo(60 - i * 10),
-    end_date: end.toISOString().slice(0, 10),
-    committed_end_date: end.toISOString().slice(0, 10),
-    estimated_hours: p.budget_hours,
-    budget_hours: p.budget_hours,
-    hours_delivered: consumed,
-    contract_type: p.contract_type as ContractType,
-    contract_value: p.value,
+    start_date: p.start,
+    end_date: committed.toISOString().slice(0, 10),
+    committed_end_date: committed.toISOString().slice(0, 10),
+    estimated_hours: p.budget,
+    budget_hours: p.budget,
+    hours_delivered: p.delivered,
+    contract_type: 'time_and_materials' as ContractType,
+    contract_value: 0,
   };
 });
 
@@ -321,26 +337,50 @@ export const DUMMY_RESOURCE_SKILLS: ResourceSkill[] = Object.entries(SKILL_DISTR
     }),
 );
 
+// Required skills derived from project name keywords. Weight 1.0 = primary,
+// 0.5–0.7 = supporting capability. Project IDs match the IMIX export.
 export const DUMMY_PROJECT_REQUIRED_SKILLS: ProjectRequiredSkill[] = [
-  { project_id: 5001, skill_id: 'sk-m365',     weight: 1.0 },
-  { project_id: 5001, skill_id: 'sk-exchange', weight: 0.8 },
-  { project_id: 5002, skill_id: 'sk-fw',       weight: 1.0 },
-  { project_id: 5002, skill_id: 'sk-soc',      weight: 0.7 },
-  { project_id: 5003, skill_id: 'sk-cisco',    weight: 1.0 },
-  { project_id: 5003, skill_id: 'sk-meraki',   weight: 0.7 },
-  { project_id: 5004, skill_id: 'sk-veeam',    weight: 1.0 },
-  { project_id: 5004, skill_id: 'sk-azure',    weight: 0.6 },
-  { project_id: 5005, skill_id: 'sk-m365',     weight: 1.0 },
-  { project_id: 5005, skill_id: 'sk-ad',       weight: 0.5 },
-  // Pipeline
-  { project_id: 9001, skill_id: 'sk-ad',       weight: 1.0 },
-  { project_id: 9001, skill_id: 'sk-sso',      weight: 1.0 },
-  { project_id: 9001, skill_id: 'sk-azure',    weight: 0.7 },
-  { project_id: 9002, skill_id: 'sk-veeam',    weight: 0.5 },
-  { project_id: 9003, skill_id: 'sk-ad',       weight: 1.0 },
-  { project_id: 9004, skill_id: 'sk-veeam',    weight: 1.0 },
-  { project_id: 9005, skill_id: 'sk-m365',     weight: 1.0 },
-  { project_id: 9006, skill_id: 'sk-cisco',    weight: 1.0 },
+  // Active — MFA on Workstations (M365 + AD)
+  { project_id: 7001, skill_id: 'sk-m365', weight: 1.0 }, { project_id: 7001, skill_id: 'sk-ad',     weight: 0.7 },
+  { project_id: 7002, skill_id: 'sk-m365', weight: 1.0 }, { project_id: 7002, skill_id: 'sk-ad',     weight: 0.7 },
+  { project_id: 7004, skill_id: 'sk-m365', weight: 1.0 }, { project_id: 7004, skill_id: 'sk-ad',     weight: 0.7 },
+  { project_id: 7005, skill_id: 'sk-m365', weight: 1.0 }, { project_id: 7005, skill_id: 'sk-ad',     weight: 0.7 },
+  // Active — Last Pass Implementation (M365 + Intune)
+  { project_id: 7003, skill_id: 'sk-m365', weight: 1.0 }, { project_id: 7003, skill_id: 'sk-intune', weight: 0.7 },
+  { project_id: 7006, skill_id: 'sk-m365', weight: 1.0 }, { project_id: 7006, skill_id: 'sk-intune', weight: 0.7 },
+  { project_id: 7010, skill_id: 'sk-m365', weight: 1.0 }, { project_id: 7010, skill_id: 'sk-intune', weight: 0.7 },
+  // Active — Server Replacement
+  { project_id: 7007, skill_id: 'sk-ad',    weight: 1.0 }, { project_id: 7007, skill_id: 'sk-azure', weight: 0.6 },
+  // Active — Hardening / Quarantine
+  { project_id: 7008, skill_id: 'sk-fw',    weight: 1.0 }, { project_id: 7008, skill_id: 'sk-soc',   weight: 0.7 },
+  // Active — Acquisition (broad)
+  { project_id: 7009, skill_id: 'sk-m365',  weight: 1.0 }, { project_id: 7009, skill_id: 'sk-ad',    weight: 1.0 }, { project_id: 7009, skill_id: 'sk-azure', weight: 0.7 }, { project_id: 7009, skill_id: 'sk-cisco', weight: 0.7 },
+  // Active — Office Move (network)
+  { project_id: 7011, skill_id: 'sk-cisco', weight: 1.0 }, { project_id: 7011, skill_id: 'sk-meraki', weight: 0.7 },
+  // Active — Network Refresh
+  { project_id: 7012, skill_id: 'sk-cisco', weight: 1.0 }, { project_id: 7012, skill_id: 'sk-meraki', weight: 0.7 },
+
+  // Pipeline — Last Pass / Compliance
+  { project_id: 8001, skill_id: 'sk-m365',  weight: 1.0 }, { project_id: 8001, skill_id: 'sk-intune', weight: 0.7 },
+  { project_id: 8009, skill_id: 'sk-soc',   weight: 1.0 }, { project_id: 8009, skill_id: 'sk-fw',    weight: 0.7 },
+  // Pipeline — Azure / Cloud
+  { project_id: 8002, skill_id: 'sk-azure', weight: 1.0 },
+  { project_id: 8006, skill_id: 'sk-azure', weight: 1.0 },
+  // Pipeline — MFA / Network
+  { project_id: 8003, skill_id: 'sk-fw',    weight: 1.0 }, { project_id: 8003, skill_id: 'sk-ad',    weight: 0.7 },
+  { project_id: 8004, skill_id: 'sk-cisco', weight: 1.0 }, { project_id: 8004, skill_id: 'sk-meraki', weight: 0.7 },
+  { project_id: 8005, skill_id: 'sk-m365',  weight: 1.0 }, { project_id: 8005, skill_id: 'sk-ad',    weight: 0.7 },
+  // Pipeline — Office / Endpoint discovery
+  { project_id: 8007, skill_id: 'sk-cisco', weight: 1.0 }, { project_id: 8007, skill_id: 'sk-meraki', weight: 0.7 },
+  { project_id: 8008, skill_id: 'sk-intune', weight: 1.0 }, { project_id: 8008, skill_id: 'sk-ad',    weight: 0.7 },
+  // Pipeline — Network refresh
+  { project_id: 8010, skill_id: 'sk-cisco', weight: 1.0 }, { project_id: 8010, skill_id: 'sk-meraki', weight: 0.7 },
+  { project_id: 8011, skill_id: 'sk-cisco', weight: 1.0 }, { project_id: 8011, skill_id: 'sk-meraki', weight: 0.7 },
+  // Pipeline — MDM / Migration
+  { project_id: 8012, skill_id: 'sk-intune', weight: 1.0 },
+  { project_id: 8013, skill_id: 'sk-azure',  weight: 1.0 }, { project_id: 8013, skill_id: 'sk-ad',    weight: 0.7 },
+  { project_id: 8014, skill_id: 'sk-m365',  weight: 1.0 }, { project_id: 8014, skill_id: 'sk-exchange', weight: 0.7 },
+  { project_id: 8015, skill_id: 'sk-m365',  weight: 1.0 }, { project_id: 8015, skill_id: 'sk-ad',    weight: 0.7 }, { project_id: 8015, skill_id: 'sk-cisco', weight: 0.5 },
 ];
 
 export const DUMMY_SYNC_RUNS = [
@@ -358,12 +398,19 @@ function hoursAgo(h: number): string {
 }
 
 export const DUMMY_STATUS_MAPPINGS = [
+  // Active statuses observed in the IMIX export
+  { entity_type: 'project', autotask_status: 'New',                    app_bucket: 'active',   counts_toward_utilization: true },
+  { entity_type: 'project', autotask_status: 'Planning - On Track',    app_bucket: 'active',   counts_toward_utilization: true },
+  { entity_type: 'project', autotask_status: 'Execution - On Track',   app_bucket: 'active',   counts_toward_utilization: true },
   { entity_type: 'project', autotask_status: 'In Progress',            app_bucket: 'active',   counts_toward_utilization: true },
+  // Pipeline statuses
   { entity_type: 'project', autotask_status: 'On Hold',                app_bucket: 'pipeline', counts_toward_utilization: false },
   { entity_type: 'project', autotask_status: 'Opportunity - On Track', app_bucket: 'pipeline', counts_toward_utilization: false },
   { entity_type: 'project', autotask_status: 'Opportunity - Off Track',app_bucket: 'pipeline', counts_toward_utilization: false },
   { entity_type: 'project', autotask_status: 'Discovery',              app_bucket: 'pipeline', counts_toward_utilization: false },
+  // Complete
   { entity_type: 'project', autotask_status: 'Complete',               app_bucket: 'complete', counts_toward_utilization: false },
+  // Tasks
   { entity_type: 'task',    autotask_status: 'In Progress',            app_bucket: 'active',   counts_toward_utilization: true },
   { entity_type: 'task',    autotask_status: 'Waiting on Customer',    app_bucket: 'inactive', counts_toward_utilization: false },
   { entity_type: 'task',    autotask_status: 'Complete',               app_bucket: 'complete', counts_toward_utilization: false },
@@ -375,85 +422,66 @@ function monthOffset(months: number): string {
   return d.toISOString().slice(0, 7);
 }
 
+// Real pipeline projects from the IMIX export — On Hold + Opportunity statuses.
+// contract_value is synthesized at $185/hr so the revenue forecast has signal;
+// override per project if the real number is known.
+// win_probability is derived from status: On Hold = 0.40, Opportunity = 0.70.
+// target_month is anchored to the current month for past-start projects so
+// they show up in the rolling 3-month forecast (these need re-engagement now,
+// not "in their original planned month, 6 months ago").
+function pipelineEntry(p: {
+  id: number;
+  name: string;
+  account: string;
+  status: PipelineProject['status'];
+  budget: number;
+  delivered: number;
+  start: string;
+  next_action?: string;
+  last_contact_days_ago: number;
+  target_month_offset: 0 | 1 | 2;
+}): PipelineProject {
+  const winProb = p.status === 'Opportunity - On Track' ? 0.70 : 0.40;
+  const synthValue = Math.round(p.budget * 185);
+  return {
+    autotask_id: p.id,
+    name: p.name,
+    account_id: p.id,
+    account_name: p.account,
+    status: p.status,
+    estimated_hours: p.budget,
+    budget_hours: p.budget,
+    hours_delivered: p.delivered,
+    start_date: p.start,
+    end_date: null,
+    committed_end_date: null,
+    contract_type: 'time_and_materials',
+    contract_value: synthValue,
+    target_month: monthOffset(p.target_month_offset),
+    next_action: p.next_action,
+    last_client_contact: daysAgo(p.last_contact_days_ago),
+    win_probability: winProb,
+  };
+}
+
 export const DUMMY_PIPELINE: PipelineProject[] = [
-  {
-    autotask_id: 9001,
-    name: 'Acme Phase 2 — Identity Modernization',
-    account_id: 1, account_name: 'Acme Industries',
-    status: 'Opportunity - On Track',
-    estimated_hours: 240, budget_hours: 240, hours_delivered: 0,
-    start_date: null, end_date: null, committed_end_date: null,
-    contract_type: 'fixed_fee', contract_value: 42000,
-    target_month: monthOffset(0),
-    next_action: 'Send updated SOW',
-    last_client_contact: daysAgo(4),
-    win_probability: 0.75,
-  },
-  {
-    autotask_id: 9002,
-    name: 'Globex Server Refresh',
-    account_id: 2, account_name: 'Globex Corp',
-    status: 'On Hold',
-    estimated_hours: 80, budget_hours: 80, hours_delivered: 0,
-    start_date: null, end_date: null, committed_end_date: null,
-    contract_type: 'time_and_materials', contract_value: 0,
-    target_month: monthOffset(0),
-    next_action: 'Re-engage CFO on budget',
-    last_client_contact: daysAgo(21),
-    win_probability: 0.30,
-  },
-  {
-    autotask_id: 9003,
-    name: 'Initech AD Migration',
-    account_id: 3, account_name: 'Initech',
-    status: 'Discovery',
-    estimated_hours: 120, budget_hours: 120, hours_delivered: 0,
-    start_date: null, end_date: null, committed_end_date: null,
-    contract_type: 'fixed_fee', contract_value: 21000,
-    target_month: monthOffset(1),
-    next_action: 'Discovery workshop scheduled',
-    last_client_contact: daysAgo(2),
-    win_probability: 0.60,
-  },
-  {
-    autotask_id: 9004,
-    name: 'Hooli Backup Modernization (Phase 2)',
-    account_id: 4, account_name: 'Hooli',
-    status: 'Opportunity - Off Track',
-    estimated_hours: 180, budget_hours: 180, hours_delivered: 0,
-    start_date: null, end_date: null, committed_end_date: null,
-    contract_type: 'time_and_materials', contract_value: 0,
-    target_month: monthOffset(1),
-    next_action: 'Need updated requirements from IT director',
-    last_client_contact: daysAgo(31),
-    win_probability: 0.20,
-  },
-  {
-    autotask_id: 9005,
-    name: 'Pied Piper M365 Tenant Build',
-    account_id: 5, account_name: 'Pied Piper',
-    status: 'Opportunity - On Track',
-    estimated_hours: 160, budget_hours: 160, hours_delivered: 0,
-    start_date: null, end_date: null, committed_end_date: null,
-    contract_type: 'fixed_fee', contract_value: 28000,
-    target_month: monthOffset(2),
-    next_action: 'Awaiting executed MSA',
-    last_client_contact: daysAgo(6),
-    win_probability: 0.85,
-  },
-  {
-    autotask_id: 9006,
-    name: 'Acme Networking Refresh',
-    account_id: 1, account_name: 'Acme Industries',
-    status: 'On Hold',
-    estimated_hours: 60, budget_hours: 60, hours_delivered: 0,
-    start_date: null, end_date: null, committed_end_date: null,
-    contract_type: 'time_and_materials', contract_value: 0,
-    target_month: monthOffset(2),
-    next_action: 'Hardware lead time blocking start',
-    last_client_contact: daysAgo(12),
-    win_probability: 0.40,
-  },
+  // ── On Hold ───────────────────────────────────────────────────────────────
+  pipelineEntry({ id: 8001, name: 'PA Options - Q2 Last Pass',                     account: 'PA Options for Wellness Inc',                  status: 'On Hold', budget: 17.40, delivered: 4.25,  start: '2026-03-30', next_action: 'Confirm timeline with client',           last_contact_days_ago: 5,  target_month_offset: 0 }),
+  pipelineEntry({ id: 8002, name: 'Capozzi Adler - Q3 Azure Discovery',            account: 'Capozzi Adler, PC',                            status: 'On Hold', budget: 19.55, delivered: 2.13,  start: '2026-01-01', next_action: 'Schedule discovery workshop',            last_contact_days_ago: 49, target_month_offset: 0 }),
+  pipelineEntry({ id: 8003, name: 'PBA - Q1 MFA on VPN/Servers',                   account: 'Pennsylvania Builders Association',            status: 'On Hold', budget: 19.55, delivered: 0.50,  start: '2026-01-01', next_action: 'Awaiting client maintenance window',     last_contact_days_ago: 70, target_month_offset: 1 }),
+  pipelineEntry({ id: 8004, name: 'PBA - Q1 Network Refresh',                      account: 'Pennsylvania Builders Association',            status: 'On Hold', budget: 19.55, delivered: 1.12,  start: '2026-01-01', next_action: 'Hardware procurement decision pending',  last_contact_days_ago: 70, target_month_offset: 1 }),
+  pipelineEntry({ id: 8005, name: 'PDAA - Q1 MFA on Workstations',                 account: 'Pennsylvania District Attorneys Assoc.',       status: 'On Hold', budget: 18.55, delivered: 0.75,  start: '2026-01-01', next_action: 'Re-engage on rollout schedule',          last_contact_days_ago: 100, target_month_offset: 0 }),
+  pipelineEntry({ id: 8006, name: 'Zimmerman - Q1 Serverless Migration',           account: 'Zimmerman Plumbing and Heating',               status: 'On Hold', budget: 15.55, delivered: 1.95,  start: '2026-01-01', next_action: 'Confirm Azure subscription readiness',   last_contact_days_ago: 4,  target_month_offset: 0 }),
+  pipelineEntry({ id: 8007, name: 'M2 - Office Renovation',                        account: 'M2 Construction, LLC',                         status: 'On Hold', budget: 22.25, delivered: 11.93, start: '2026-01-08', next_action: 'Construction completion gating cutover', last_contact_days_ago: 28, target_month_offset: 1 }),
+  // ── Opportunity - On Track ────────────────────────────────────────────────
+  pipelineEntry({ id: 8008, name: 'Gift CPA - Q2 Intune and Entra Endpoint Discovery', account: 'Gift CPAs, LLC',                          status: 'Opportunity - On Track', budget: 19.55, delivered: 0.78, start: '2026-01-01', next_action: 'Discovery workshop scheduled',   last_contact_days_ago: 34, target_month_offset: 0 }),
+  pipelineEntry({ id: 8009, name: 'PA Options - Q1 Compliance and Pen Testing',    account: 'PA Options for Wellness Inc',                  status: 'Opportunity - On Track', budget: 19.55, delivered: 0,    start: '2026-01-01', next_action: 'Send pen-test SOW for review',  last_contact_days_ago: 146, target_month_offset: 0 }),
+  pipelineEntry({ id: 8010, name: 'RestoreCore - Q2 Network Refresh KOP',          account: 'RestoreCore',                                  status: 'Opportunity - On Track', budget: 18.55, delivered: 1.52, start: '2026-04-01', next_action: 'Awaiting site survey results',  last_contact_days_ago: 34, target_month_offset: 1 }),
+  pipelineEntry({ id: 8011, name: 'CCW - Q2 Network Refresh',                      account: 'Cunningham, Chernicoff, & Warshawsky, P.C',    status: 'Opportunity - On Track', budget: 19.55, delivered: 9.50, start: '2026-03-05', next_action: 'Schedule cutover date',          last_contact_days_ago: 27, target_month_offset: 1 }),
+  pipelineEntry({ id: 8012, name: 'MTMSA - Q2 MDM',                                account: 'Montgomery Township Municipal Sewer Authority', status: 'Opportunity - On Track', budget: 18.55, delivered: 4.77, start: '2026-02-03', next_action: 'Pilot device enrollment in flight', last_contact_days_ago: 0,  target_month_offset: 1 }),
+  pipelineEntry({ id: 8013, name: 'AHEDD - Q2 AIMS Migration',                     account: 'AHEDD',                                        status: 'Opportunity - On Track', budget: 12.00, delivered: 1.67, start: '2026-04-02', next_action: 'Migration plan in client review', last_contact_days_ago: 26, target_month_offset: 1 }),
+  pipelineEntry({ id: 8014, name: 'Mt. Cav - Q2 365 Migration',                    account: 'Mt. Calvary United Methodist Church',          status: 'Opportunity - On Track', budget: 12.30, delivered: 3.77, start: '2026-04-06', next_action: 'Tenant prep underway',           last_contact_days_ago: 3,  target_month_offset: 1 }),
+  pipelineEntry({ id: 8015, name: 'DF Allentown - Entra/365 Migration/Network',    account: 'Driving Force Collision - Allentown',          status: 'Opportunity - On Track', budget: 12.30, delivered: 0,    start: '2026-04-10', next_action: 'Awaiting acquisition close',     last_contact_days_ago: 5,  target_month_offset: 2 }),
 ];
 
 function daysAgo(d: number): string {
@@ -484,9 +512,9 @@ export function simulateAiResponse(query: string): AiMessage {
         '**Capacity summary — week of ' + getNext12Weeks()[0] + '**',
         '',
         '• 2 engineers projected over 110% next 2 weeks (Patrick Winters, Barend Lotriet).',
-        '• Pipeline coverage for the current month is **133%** — capacity is the bottleneck.',
-        '• Globex Server Refresh has been on hold 21 days; CFO budget conversation is the open item.',
-        '• Acme M365 Migration is at 75% of budget hours with ~3 weeks of timeline remaining (on pace).',
+        '• Driving Force - Allentown Acquisition is in planning at 14% hours / 22% task — on pace, but the largest open commitment (88h budget).',
+        '• PA Options - Q1 Compliance and Pen Testing has had no client contact in 146 days. Push to close or kill.',
+        '• M2 - Office Renovation is 53% hours / 39% task — burning ahead of timeline. Worth a check-in with Shawna.',
         '• 1 PTO request pending director approval (Chris Kaschak, 40h, week of ' + getNext12Weeks()[6] + ').',
       ].join('\n'),
     };
@@ -513,10 +541,10 @@ export function simulateAiResponse(query: string): AiMessage {
       content: [
         '**Overbooked engineers (next 4 weeks):**',
         '',
-        '• **Patrick Winters** — 122% week of ' + getNext12Weeks()[1] + ', driver: Acme M365 cutover (28h).',
-        '• **Barend Lotriet** — 118% week of ' + getNext12Weeks()[2] + ', driver: 3 concurrent Azure projects.',
+        '• **Patrick Winters** — 122% week of ' + getNext12Weeks()[1] + ', driver: Capozzi Adler Q1 Network Refresh + 4 concurrent Q2 MFA rollouts.',
+        '• **Barend Lotriet** — 118% week of ' + getNext12Weeks()[2] + ', driver: Driving Force Allentown Acquisition planning + Azure-touch projects.',
         '',
-        'Suggested rebalancing: move 8h of Acme documentation from Patrick to Chris Kaschak (current util 62%).',
+        'Suggested rebalancing: shift 8h of Q2 MFA documentation from Patrick to Chris Kaschak (M365 expert, current util 62%).',
       ].join('\n'),
     };
   }

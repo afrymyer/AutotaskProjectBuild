@@ -1,5 +1,7 @@
+import { ChevronsRight } from 'lucide-react';
 import { usePipelineData } from '../lib/data';
 import type { PipelineStatus } from '../lib/types';
+import { PageHero } from '../components/PageHero';
 
 export function PipelinePage() {
   const { pipeline, forecast } = usePipelineData();
@@ -15,12 +17,16 @@ export function PipelinePage() {
 
   return (
     <section>
-      <h1>Pipeline</h1>
-      <p className="muted">
-        Projects with status <em>On Hold</em>, <em>Discovery</em>, or any{' '}
-        <em>Opportunity</em> bucket. Coverage is weighted by win probability so the forecast
-        reflects expected demand, not fantasy demand.
-      </p>
+      <PageHero
+        icon={<ChevronsRight size={20} />}
+        title="Pipeline"
+        subtitle={
+          <>
+            Projects bucketed as <em>On Hold</em>, <em>Discovery</em>, or <em>Opportunity</em>.
+            Forecast coverage is weighted by win probability.
+          </>
+        }
+      />
 
       <h2>Forecast — capacity vs weighted pipeline</h2>
       <table className="data-table forecast-table">
@@ -43,10 +49,10 @@ export function PipelinePage() {
             return (
               <tr key={f.month}>
                 <td>{f.label}</td>
-                <td>{f.freeHours}h</td>
-                <td className="muted">{f.pipelineHoursUnweighted}h</td>
-                <td>{f.pipelineHoursWeighted}h</td>
-                <td>{fmtUsd(expectedRevenue)}</td>
+                <td className="num">{f.freeHours}h</td>
+                <td className="num muted">{f.pipelineHoursUnweighted}h</td>
+                <td className="num">{f.pipelineHoursWeighted}h</td>
+                <td className="num">{fmtUsd(expectedRevenue)}</td>
                 <td>
                   <span className={`pill pill-${read.tone}`}>
                     {Number.isFinite(f.coverageRatio) ? `${pct}%` : '—'}
@@ -82,15 +88,17 @@ export function PipelinePage() {
                 <td>{p.name}</td>
                 <td>{p.account_name ?? '—'}</td>
                 <td><StatusPill status={p.status} /></td>
-                <td>{p.estimated_hours}h</td>
-                <td>{p.contract_value > 0 ? fmtUsd(p.contract_value) : <span className="muted">T&amp;M</span>}</td>
+                <td className="num">{p.estimated_hours}h</td>
+                <td className="num">
+                  {p.contract_value > 0 ? fmtUsd(p.contract_value) : <span className="muted">T&amp;M</span>}
+                </td>
                 <td>
                   <ProbBar value={p.win_probability} />
                 </td>
                 <td>{formatMonth(p.target_month)}</td>
                 <td className={stale ? 'cell-warn' : ''}>
                   {p.last_client_contact ?? '—'}
-                  {stale && <span className="cell-warn-marker"> ·  stale</span>}
+                  {stale && <span className="cell-warn-marker"> · stale</span>}
                 </td>
                 <td>{p.next_action ?? '—'}</td>
               </tr>

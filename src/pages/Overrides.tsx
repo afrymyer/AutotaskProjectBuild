@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { CalendarOff, RefreshCw, Check, AlertTriangle } from 'lucide-react';
 import { useDashboardData } from '../lib/data';
+import { PageHero } from '../components/PageHero';
 
 export function OverridesPage() {
   const { resources, weeks, overrides, saveOverride } = useDashboardData();
@@ -16,6 +18,7 @@ export function OverridesPage() {
   const overrideMap = new Map(
     overrides.map((o) => [`${o.resource_id}|${o.week_start_et}`, o]),
   );
+  const pendingCount = overrides.filter((o) => o.approval_status === 'pending').length;
 
   function startEdit(resourceId: number, week: string) {
     const existing = overrideMap.get(`${resourceId}|${week}`);
@@ -43,7 +46,6 @@ export function OverridesPage() {
   function fakeM365Sync() {
     setM365Status('syncing');
     setM365Imported(0);
-    // Simulate progress
     let imported = 0;
     const interval = window.setInterval(() => {
       imported++;
@@ -51,7 +53,6 @@ export function OverridesPage() {
       if (imported >= 4) {
         window.clearInterval(interval);
         setM365Status('done');
-        // Apply 2 simulated PTO blocks for the demo
         if (resources[1] && resources[2]) {
           saveOverride({
             resource_id: resources[1].autotask_id,
@@ -72,33 +73,35 @@ export function OverridesPage() {
     }, 250);
   }
 
-  const pendingCount = overrides.filter((o) => o.approval_status === 'pending').length;
-
   return (
     <section>
-      <h1>Overrides — PTO &amp; unavailable hours</h1>
-      <p className="muted">
-        Adjust per-resource per-week capacity. Edits over 40h PTO route to the{' '}
-        <strong>Approvals</strong> tab for director sign-off and don't shift the heatmap
-        until approved.
-      </p>
+      <PageHero
+        icon={<CalendarOff size={20} />}
+        title="Overrides — PTO & unavailable hours"
+        subtitle="Adjust per-resource per-week capacity. Edits over 40h PTO route to the Approvals tab and don't shift the heatmap until approved."
+        actions={
+          <div className="header-actions-row">
+            <button className="primary" onClick={fakeM365Sync} disabled={m365Status === 'syncing'}>
+              {m365Status === 'syncing' ? <RefreshCw size={12} className="spin" /> : <RefreshCw size={12} />}
+              {m365Status === 'idle' && 'Sync from Outlook'}
+              {m365Status === 'syncing' && `Syncing… (${m365Imported}/4)`}
+              {m365Status === 'done' && (
+                <>
+                  <Check size={12} /> 2 OOO blocks imported
+                </>
+              )}
+            </button>
+            {pendingCount > 0 && (
+              <span className="pill pill-partial">{pendingCount} pending</span>
+            )}
+          </div>
+        }
+      />
 
-      <div className="toolbar">
-        <button className="primary" onClick={fakeM365Sync} disabled={m365Status === 'syncing'}>
-          {m365Status === 'idle' && 'Sync PTO from Outlook (M365)'}
-          {m365Status === 'syncing' && `Syncing… (${m365Imported}/4)`}
-          {m365Status === 'done' && '✓ Synced — 2 OOO blocks imported'}
-        </button>
-        <span className="muted small">
-          Preview-stubbed. Production wires to <code>integrations.microsoft_graph</code> with
-          delegated user consent.
-        </span>
-        {pendingCount > 0 && (
-          <span className="pill pill-partial" style={{ marginLeft: 'auto' }}>
-            {pendingCount} pending approval
-          </span>
-        )}
-      </div>
+      <p className="muted small">
+        M365 sync is preview-stubbed. Production wires to <code>integrations.microsoft_graph</code>{' '}
+        with delegated user consent.
+      </p>
 
       <div
         className="overrides-grid"
@@ -116,6 +119,7 @@ export function OverridesPage() {
             key={r.autotask_id}
             resourceId={r.autotask_id}
             label={`${r.first_name} ${r.last_name}`}
+            initials={`${r.first_name[0]}${r.last_name[0]}`}
             weeks={weeks}
             overrideMap={overrideMap}
             onClick={(w) => startEdit(r.autotask_id, w)}
@@ -127,14 +131,15 @@ export function OverridesPage() {
         <div className="modal-backdrop" onClick={() => setEditing(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>Edit override</h2>
-            <p className="muted">
+            <p className="muted small">
               Resource {editing.resource_id} · week of {editing.week_start_et}
-              {editing.pto_hours > 40 && (
-                <span className="cell-warn">
-                  {' '} · ⚠ &gt;40h triggers approval workflow
-                </span>
-              )}
             </p>
+            {editing.pto_hours > 40 && (
+              <div className="banner partial" style={{ marginTop: 12 }}>
+                <AlertTriangle size={14} />
+                <span>Over 40h PTO will route to director approval</span>
+              </div>
+            )}
             <label>
               PTO hours
               <input
@@ -169,9 +174,7 @@ export function OverridesPage() {
             </label>
             <div className="modal-actions">
               <button onClick={() => setEditing(null)}>Cancel</button>
-              <button className="primary" onClick={commit}>
-                Save
-              </button>
+              <button className="primary" onClick={commit}>Save</button>
             </div>
           </div>
         </div>
@@ -183,12 +186,14 @@ export function OverridesPage() {
 function Row({
   resourceId,
   label,
+  initials,
   weeks,
   overrideMap,
   onClick,
 }: {
   resourceId: number;
   label: string;
+  initials: string;
   weeks: string[];
   overrideMap: Map<string, {
     pto_hours: number;
@@ -199,7 +204,12 @@ function Row({
 }) {
   return (
     <>
-      <div className="heatmap-name">{label}</div>
+      <div className="heatmap-name">
+        <div className="heatmap-name-line">
+          <span className="avatar-circle">{initials}</span>
+          <span>{label}</span>
+        </div>
+      </div>
       {weeks.map((w) => {
         const o = overrideMap.get(`${resourceId}|${w}`);
         const hasOverride = o && (o.pto_hours > 0 || o.unavailable_hours > 0);

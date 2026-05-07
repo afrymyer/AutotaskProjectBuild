@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { Bot, Send, X } from 'lucide-react';
 import { useAi } from '../lib/data';
+import { PageHero } from '../components/PageHero';
 
 const SUGGESTIONS = [
   'Summarize this week',
@@ -18,17 +20,31 @@ export function AssistantPage() {
 
   return (
     <section>
-      <h1>Assistant</h1>
-      <p className="muted">
-        Natural-language queries over your capacity, projects, and pipeline data.{' '}
-        <strong>Preview note:</strong> responses below are simulated against the dummy data so
-        the surface is testable; production wires to the Anthropic API with tool definitions
-        over the Postgres schema (see <code>integrations.anthropic</code>).
-      </p>
+      <PageHero
+        icon={<Bot size={20} />}
+        title="Assistant"
+        subtitle={
+          <>
+            Natural-language queries over your capacity, projects, and pipeline data.{' '}
+            <strong>Preview note:</strong> responses are simulated; production wires to the
+            Anthropic API with tool definitions over the schema.
+          </>
+        }
+        actions={
+          history.length > 0 ? (
+            <button onClick={reset}>
+              <X size={12} /> Clear
+            </button>
+          ) : null
+        }
+      />
 
       <div className="ai-chat">
         {history.length === 0 && (
           <div className="ai-empty">
+            <div className="ai-empty-icon">
+              <Bot size={28} />
+            </div>
             <p className="muted">Ask anything about your team, projects, or pipeline.</p>
             <div className="ai-suggestions">
               {SUGGESTIONS.map((s) => (
@@ -61,20 +77,14 @@ export function AssistantPage() {
           placeholder="Ask about capacity, pipeline, or projects…"
         />
         <button className="primary" type="submit" disabled={!input.trim()}>
-          Send
+          <Send size={12} /> Send
         </button>
-        {history.length > 0 && (
-          <button type="button" onClick={reset}>
-            Clear
-          </button>
-        )}
       </form>
     </section>
   );
 }
 
 function renderContent(text: string) {
-  // Tiny markdown renderer for bold (**) and bullets — preview-grade.
   const lines = text.split('\n');
   return (
     <>

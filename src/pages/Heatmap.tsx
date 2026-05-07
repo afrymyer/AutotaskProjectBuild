@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { Activity, AlertTriangle, ArrowRight, Lightbulb } from 'lucide-react';
 import {
   useDashboardData,
   useProjectsData,
@@ -7,6 +8,7 @@ import {
 } from '../lib/data';
 import { utilizationColor, utilizationCssVar } from '../lib/heatmap';
 import { DUMMY_RESOURCES } from '../dev/dummyData';
+import { PageHero } from '../components/PageHero';
 
 export function HeatmapPage() {
   const { resources, weeks, cells } = useDashboardData();
@@ -16,7 +18,6 @@ export function HeatmapPage() {
   const cellLookup = new Map(cells.map((c) => [`${c.resource_id}|${c.week_start_et}`, c]));
   const exposed = projects.filter((p) => p.exposureFlag);
 
-  // Per-resource average util across the visible window for the variance pill.
   const avgUtilByResource = new Map<number, number>();
   for (const r of resources) {
     const own = cells.filter((c) => c.resource_id === r.autotask_id);
@@ -26,23 +27,27 @@ export function HeatmapPage() {
 
   return (
     <section>
-      <h1>Capacity heatmap</h1>
-      <p className="muted">
-        Next 12 weeks of utilization across the PS team. Click any cell to drill into its
-        schedule entries.
-      </p>
+      <PageHero
+        icon={<Activity size={20} />}
+        title="Capacity heatmap"
+        subtitle="Next 12 weeks of utilization across the PS team. Click any cell to drill into its schedule entries."
+      />
 
       {exposed.length > 0 && (
         <div className="banner danger">
-          <strong>Client exposure:</strong>{' '}
-          {exposed.map((p, i) => (
-            <span key={p.project.autotask_id}>
-              {i > 0 && ' · '}
-              {p.project.name} ({p.daysUntilDue}d to commit, assignee &gt;110%)
-            </span>
-          ))}
-          {' '}
-          <Link to="/dashboard/projects" style={{ marginLeft: 8 }}>review →</Link>
+          <AlertTriangle size={16} />
+          <span>
+            <strong>Client exposure:</strong>{' '}
+            {exposed.map((p, i) => (
+              <span key={p.project.autotask_id}>
+                {i > 0 && ' · '}
+                {p.project.name} ({p.daysUntilDue}d to commit, assignee &gt;110%)
+              </span>
+            ))}
+          </span>
+          <Link to="/dashboard/projects" className="banner-action">
+            Review <ArrowRight size={12} />
+          </Link>
         </div>
       )}
 
@@ -69,7 +74,7 @@ export function HeatmapPage() {
               key={r.autotask_id}
               resource={r}
               targetPill={
-                <span className={`pill pill-${tone}`} style={{ marginLeft: 6, fontSize: 10 }}>
+                <span className={`pill pill-${tone}`} style={{ marginLeft: 8, fontSize: 10 }}>
                   {variance >= 0 ? '+' : ''}{Math.round(variance * 100)}
                 </span>
               }
@@ -83,7 +88,7 @@ export function HeatmapPage() {
 
       {suggestions.length > 0 && (
         <>
-          <h2>Suggested rebalancing</h2>
+          <h2><Lightbulb size={12} /> Suggested rebalancing</h2>
           <ul className="suggestion-list">
             {suggestions.map((s, i) => {
               const from = DUMMY_RESOURCES.find((r) => r.autotask_id === s.fromResourceId);
@@ -120,8 +125,15 @@ function Row({
   return (
     <>
       <div className="heatmap-name">
-        <div>
-          {resource.first_name} {resource.last_name} {targetPill}
+        <div className="heatmap-name-line">
+          <span className="avatar-circle">
+            {resource.first_name[0]}
+            {resource.last_name[0]}
+          </span>
+          <span>
+            {resource.first_name} {resource.last_name}
+          </span>
+          {targetPill}
         </div>
         <div className="muted small">{targetText}</div>
       </div>

@@ -1,5 +1,6 @@
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import { SignedIn, SignedOut, RedirectToSignIn } from '@clerk/clerk-react';
+import { LayoutGrid, Settings, Sparkles, Users } from 'lucide-react';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { TeamLayout } from './layouts/TeamLayout';
 import { InsightsLayout } from './layouts/InsightsLayout';
@@ -18,24 +19,49 @@ import { AssistantPage } from './pages/Assistant';
 import { DigestPage } from './pages/Digest';
 import { AdminPage } from './pages/Admin';
 import { ExportPage } from './pages/Export';
+import { StatusDot } from './components/StatusDot';
 import { PREVIEW_MODE } from './lib/data';
+
+const NAV_ICON = 14;
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="app-shell">
       {PREVIEW_MODE && (
         <div className="preview-banner">
-          PREVIEW MODE — auth disabled, dummy data. AI / M365 / digest email are simulated; production wires to real services.
+          Preview mode — auth disabled, dummy data. AI · M365 · digest email simulated.
         </div>
       )}
       <header className="app-header">
-        <div className="brand">Imix Projects</div>
+        <div className="brand">
+          <span className="brand-mark" />
+          <span className="brand-text">
+            Imix <span className="brand-text-em">Projects</span>
+          </span>
+          <span className="workspace-chip">IMIX · PS</span>
+        </div>
+
         <nav>
-          <NavLink to="/dashboard">Dashboard</NavLink>
-          <NavLink to="/team">Team</NavLink>
-          <NavLink to="/insights">Insights</NavLink>
-          <NavLink to="/admin">Admin</NavLink>
+          <NavLink to="/dashboard">
+            <LayoutGrid size={NAV_ICON} /> Dashboard
+          </NavLink>
+          <NavLink to="/team">
+            <Users size={NAV_ICON} /> Team
+          </NavLink>
+          <NavLink to="/insights">
+            <Sparkles size={NAV_ICON} /> Insights
+          </NavLink>
+          <NavLink to="/admin">
+            <Settings size={NAV_ICON} /> Admin
+          </NavLink>
         </nav>
+
+        <div className="header-right">
+          <span className="sync-chip" title="Hourly Autotask sync — last successful run">
+            <StatusDot tone="green" pulse />
+            Synced 1m ago
+          </span>
+        </div>
       </header>
       <main className="app-main">{children}</main>
     </div>
@@ -46,10 +72,8 @@ function Routed() {
   return (
     <Shell>
       <Routes>
-        {/* Default landing */}
         <Route path="/" element={<Navigate to="/dashboard/heatmap" replace />} />
 
-        {/* Dashboard group */}
         <Route path="/dashboard" element={<DashboardLayout />}>
           <Route index element={<Navigate to="heatmap" replace />} />
           <Route path="heatmap"   element={<HeatmapPage />} />
@@ -59,7 +83,6 @@ function Routed() {
           <Route path="scheduler" element={<SchedulerPage />} />
         </Route>
 
-        {/* Team group */}
         <Route path="/team" element={<TeamLayout />}>
           <Route index element={<Navigate to="overrides" replace />} />
           <Route path="overrides" element={<OverridesPage />} />
@@ -68,7 +91,6 @@ function Routed() {
           <Route path="me"        element={<MePage />} />
         </Route>
 
-        {/* Insights group */}
         <Route path="/insights" element={<InsightsLayout />}>
           <Route index element={<Navigate to="trends" replace />} />
           <Route path="trends"    element={<TrendsPage />} />
@@ -77,10 +99,8 @@ function Routed() {
           <Route path="export"    element={<ExportPage />} />
         </Route>
 
-        {/* Admin (single page, no sub-tabs) */}
         <Route path="/admin" element={<AdminPage />} />
 
-        {/* Drilldown stays top-level — it's a deep view, not a sub-tab */}
         <Route path="/resource/:resourceId/week/:weekStart" element={<DrilldownPage />} />
 
         {/* Backwards-compatible redirects from the old flat URLs */}

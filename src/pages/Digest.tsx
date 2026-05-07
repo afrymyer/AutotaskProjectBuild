@@ -1,4 +1,6 @@
+import { Mail, Send, Calendar } from 'lucide-react';
 import { useDashboardData, usePipelineData, useProjectsData, utilizationPct } from '../lib/data';
+import { PageHero } from '../components/PageHero';
 
 export function DigestPage() {
   const { resources, weeks, cells } = useDashboardData();
@@ -9,10 +11,13 @@ export function DigestPage() {
   for (const r of resources) {
     const next4 = cells.filter(
       (c) =>
-        c.resource_id === r.autotask_id && weeks.indexOf(c.week_start_et) >= 0 && weeks.indexOf(c.week_start_et) < 4,
+        c.resource_id === r.autotask_id &&
+        weeks.indexOf(c.week_start_et) >= 0 &&
+        weeks.indexOf(c.week_start_et) < 4,
     );
     const max = next4.reduce(
-      (acc, c) => (utilizationPct(c) > acc.pct ? { pct: utilizationPct(c), week: c.week_start_et } : acc),
+      (acc, c) =>
+        utilizationPct(c) > acc.pct ? { pct: utilizationPct(c), week: c.week_start_et } : acc,
       { pct: 0, week: '' },
     );
     if (max.pct > 1.05) overload.push({ name: `${r.first_name} ${r.last_name}`, pct: max.pct, week: max.week });
@@ -22,19 +27,28 @@ export function DigestPage() {
   const exposed = projects.filter((p) => p.exposureFlag);
   const stalePipeline = pipeline
     .filter((p) => p.last_client_contact && daysSince(p.last_client_contact) > 14)
-    .sort((a, b) => (b.estimated_hours - a.estimated_hours))
+    .sort((a, b) => b.estimated_hours - a.estimated_hours)
     .slice(0, 3);
 
   const today = new Date().toLocaleDateString('en-US', { dateStyle: 'long' });
 
   return (
     <section>
-      <h1>Weekly digest preview</h1>
-      <p className="muted">
-        This is the email that, in production, will be sent every Monday at 7am ET to Andy +
-        Director of Ops + vCIO via Resend (<code>integrations.resend</code>). Preview rendering
-        only — no email is actually sent.
-      </p>
+      <PageHero
+        icon={<Mail size={20} />}
+        title="Weekly digest preview"
+        subtitle="The email that, in production, sends every Monday at 7am ET to Andy + Director of Ops + vCIO via Resend. Preview render only — no email is actually sent."
+        actions={
+          <div className="header-actions-row">
+            <button disabled>
+              <Calendar size={12} /> Schedule Mon 7am ET
+            </button>
+            <button className="primary" disabled>
+              <Send size={12} /> Send now
+            </button>
+          </div>
+        }
+      />
 
       <div className="email-preview">
         <div className="email-header">
@@ -44,7 +58,7 @@ export function DigestPage() {
         </div>
 
         <div className="email-body">
-          <h2 style={{ margin: 0, textTransform: 'none', color: 'var(--imix-text)', letterSpacing: 0 }}>
+          <h2 style={{ margin: 0, textTransform: 'none', color: '#1a1a1a', letterSpacing: 0, fontSize: 18 }}>
             Capacity at a glance — {today}
           </h2>
 
@@ -94,24 +108,17 @@ export function DigestPage() {
                 <strong>{f.label}</strong> — {f.freeHours}h free / {f.pipelineHoursWeighted}h weighted pipeline (
                 {Number.isFinite(f.coverageRatio)
                   ? Math.round(f.coverageRatio * 100) + '%'
-                  : '—'}{' '}
-                coverage)
+                  : '—'}
+                {' '}coverage)
               </li>
             ))}
           </ul>
 
-          <p style={{ marginTop: 24, fontSize: 12, color: 'var(--imix-muted)' }}>
-            View the full dashboard: <a>https://imix-projects.imixit.com</a>{' '}
-            · Manage delivery preferences in the app.
+          <p style={{ marginTop: 24, fontSize: 12, color: '#6b7180' }}>
+            View the full dashboard: <a>https://imix-projects.imixit.com</a>{' '}· Manage delivery
+            preferences in the app.
           </p>
         </div>
-      </div>
-
-      <div className="toolbar">
-        <button className="primary" disabled>
-          Send now (production: Resend API)
-        </button>
-        <button disabled>Schedule weekly Monday 7am ET</button>
       </div>
     </section>
   );

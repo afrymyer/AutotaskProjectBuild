@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { Sparkles, AlertTriangle } from 'lucide-react';
 import { useSkillsData } from '../lib/data';
 import type { ResourceSkill } from '../lib/types';
+import { PageHero } from '../components/PageHero';
 
 export function SkillsPage() {
   const { skills, resources, resourceSkills, projectRequiredSkills, expiringCertifications } =
@@ -26,33 +28,33 @@ export function SkillsPage() {
 
   return (
     <section>
-      <h1>Skills matrix</h1>
-      <p className="muted">
-        Capability-aware staffing. The right question isn't "who has time" — it's
-        "who has time and can do this work."
-      </p>
+      <PageHero
+        icon={<Sparkles size={20} />}
+        title="Skills matrix"
+        subtitle="Capability-aware staffing. The right question isn't 'who has time' — it's 'who has time and can do this work.'"
+        actions={
+          <label className="toolbar-control">
+            <span className="muted small">Filter</span>
+            <select value={filterSkill} onChange={(e) => setFilterSkill(e.target.value)}>
+              <option value="">— any skill —</option>
+              {skills.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </label>
+        }
+      />
 
       {expiringCertifications.length > 0 && (
         <div className="banner partial">
-          <strong>{expiringCertifications.length}</strong>{' '}
-          certification{expiringCertifications.length === 1 ? '' : 's'} expiring in &lt; 90 days.
-          Surfaced for renewal scheduling.
+          <AlertTriangle size={16} />
+          <span>
+            <strong>{expiringCertifications.length}</strong>{' '}
+            certification{expiringCertifications.length === 1 ? '' : 's'} expiring in &lt; 90 days.
+            Surfaced for renewal scheduling.
+          </span>
         </div>
       )}
-
-      <div className="toolbar">
-        <label>
-          Filter: only resources with{' '}
-          <select value={filterSkill} onChange={(e) => setFilterSkill(e.target.value)}>
-            <option value="">— any skill —</option>
-            {skills.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
 
       <div className="skill-matrix" style={{ gridTemplateColumns: `200px repeat(${skills.length}, 1fr)` }}>
         <div className="heatmap-corner">Resource</div>
@@ -65,6 +67,7 @@ export function SkillsPage() {
           <RowMatrix
             key={r.autotask_id}
             label={`${r.first_name} ${r.last_name}`}
+            initials={`${r.first_name[0]}${r.last_name[0]}`}
             cells={skills.map((s) => matrixLookup.get(`${r.autotask_id}|${s.id}`))}
           />
         ))}
@@ -107,22 +110,27 @@ export function SkillsPage() {
 
 function RowMatrix({
   label,
+  initials,
   cells,
 }: {
   label: string;
+  initials: string;
   cells: (ResourceSkill | undefined)[];
 }) {
   return (
     <>
-      <div className="heatmap-name">{label}</div>
+      <div className="heatmap-name">
+        <div className="heatmap-name-line">
+          <span className="avatar-circle">{initials}</span>
+          <span>{label}</span>
+        </div>
+      </div>
       {cells.map((rs, i) => {
         if (!rs) return <div key={i} className="skill-cell empty" />;
         const tone =
-          rs.proficiency === 'expert'
-            ? 'green'
-            : rs.proficiency === 'proficient'
-            ? 'yellow'
-            : 'orange';
+          rs.proficiency === 'expert' ? 'green'
+          : rs.proficiency === 'proficient' ? 'yellow'
+          : 'orange';
         return (
           <div
             key={i}

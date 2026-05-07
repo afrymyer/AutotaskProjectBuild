@@ -1,4 +1,6 @@
+import { Download } from 'lucide-react';
 import { useDashboardData, utilizationPct } from '../lib/data';
+import { PageHero } from '../components/PageHero';
 
 export function ExportPage() {
   const { resources, cells } = useDashboardData();
@@ -41,17 +43,29 @@ export function ExportPage() {
 
   return (
     <section>
-      <h1>Export</h1>
-      <p className="muted">
-        Download next 12 weeks of utilization as CSV for the Director of Ops + vCIO.
-      </p>
-      <button className="primary" onClick={downloadCsv}>
-        Download CSV
-      </button>
-      <p className="muted small">
-        Columns: resource_name, week_start_et, scheduled_hours, pto_hours,
-        unavailable_hours, weekly_capacity_hours, utilization_pct.
-      </p>
+      <PageHero
+        icon={<Download size={20} />}
+        title="Export"
+        subtitle="Download the next 12 weeks of utilization as CSV for the Director of Ops + vCIO."
+        actions={
+          <button className="primary" onClick={downloadCsv}>
+            <Download size={12} /> Download CSV
+          </button>
+        }
+      />
+
+      <div className="info-card">
+        <h3>Columns</h3>
+        <ul className="muted">
+          <li><code>resource_name</code></li>
+          <li><code>week_start_et</code> (Monday in America/New_York)</li>
+          <li><code>scheduled_hours</code></li>
+          <li><code>pto_hours</code></li>
+          <li><code>unavailable_hours</code></li>
+          <li><code>weekly_capacity_hours</code></li>
+          <li><code>utilization_pct</code></li>
+        </ul>
+      </div>
     </section>
   );
 }

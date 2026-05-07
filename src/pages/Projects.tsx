@@ -1,35 +1,62 @@
+import { AlertOctagon, AlertTriangle, Briefcase, ListChecks, TrendingUp } from 'lucide-react';
 import { useProjectsData, type ProjectHealth } from '../lib/data';
 import { DUMMY_RESOURCES } from '../dev/dummyData';
+import { PageHero } from '../components/PageHero';
+import { Kpi } from '../components/Kpi';
 
 export function ProjectsPage() {
   const { projects, totals } = useProjectsData();
-
   const exposed = projects.filter((p) => p.exposureFlag);
   const offTrack = projects.filter((p) => p.burnRiskScore > 0.15);
 
   return (
     <section>
-      <h1>Active projects — margin, burn &amp; slip risk</h1>
-      <p className="muted">
-        Per-engagement profitability and timeline health. Overdue tasks and
-        engineer overload roll up into the slip-risk read.
-      </p>
+      <PageHero
+        icon={<Briefcase size={20} />}
+        title="Active projects"
+        subtitle="Per-engagement margin, burn-vs-budget, and slip risk. Overdue tasks and engineer overload roll up into the slip-risk read."
+      />
 
       <div className="kpi-row">
-        <Kpi label="Revenue at risk" value={fmtUsd(totals.revenueAtRiskDollars)} tone={totals.revenueAtRiskDollars > 0 ? 'red' : 'green'} />
-        <Kpi label="Overdue tasks" value={String(totals.overdueTaskCount)} tone={totals.overdueTaskCount > 0 ? 'orange' : 'green'} />
-        <Kpi label="Fixed-fee margin (current)" value={fmtUsd(totals.fixedFeeMarginDollars)} tone={totals.fixedFeeMarginDollars > 0 ? 'green' : 'red'} />
+        <Kpi
+          icon={<AlertOctagon size={16} />}
+          label="Revenue at risk"
+          value={fmtUsd(totals.revenueAtRiskDollars)}
+          tone={totals.revenueAtRiskDollars > 0 ? 'red' : 'green'}
+          subtle="Projects ≤ 28d to commit, assignee >110%"
+        />
+        <Kpi
+          icon={<ListChecks size={16} />}
+          label="Overdue tasks"
+          value={String(totals.overdueTaskCount)}
+          tone={totals.overdueTaskCount > 0 ? 'orange' : 'green'}
+          subtle={`${projects.length} active projects`}
+        />
+        <Kpi
+          icon={<TrendingUp size={16} />}
+          label="Fixed-fee margin"
+          value={fmtUsd(totals.fixedFeeMarginDollars)}
+          tone={totals.fixedFeeMarginDollars > 0 ? 'green' : 'neutral'}
+          subtle={
+            totals.fixedFeeMarginDollars === 0
+              ? 'All current projects are T&M — no margin computed'
+              : 'Sum of (contract value − loaded hours)'
+          }
+        />
       </div>
 
       {exposed.length > 0 && (
         <div className="banner danger">
-          <strong>{exposed.length} project{exposed.length === 1 ? '' : 's'} at delivery risk:</strong>{' '}
-          {exposed.map((p, i) => (
-            <span key={p.project.autotask_id}>
-              {i > 0 && '; '}
-              {p.project.name} ({p.daysUntilDue}d to commit, assignee &gt;110%)
-            </span>
-          ))}
+          <AlertTriangle size={16} />
+          <span>
+            <strong>{exposed.length} project{exposed.length === 1 ? '' : 's'} at delivery risk:</strong>{' '}
+            {exposed.map((p, i) => (
+              <span key={p.project.autotask_id}>
+                {i > 0 && '; '}
+                {p.project.name} ({p.daysUntilDue}d to commit, assignee &gt;110%)
+              </span>
+            ))}
+          </span>
         </div>
       )}
 
@@ -39,7 +66,7 @@ export function ProjectsPage() {
           <tr>
             <th>Project</th>
             <th>Client</th>
-            <th>Type</th>
+            <th>Status</th>
             <th>Hours</th>
             <th>Burn vs timeline</th>
             <th>Margin</th>
@@ -55,7 +82,7 @@ export function ProjectsPage() {
 
       {offTrack.length > 0 && (
         <>
-          <h2>Slip risk flagged</h2>
+          <h2><AlertTriangle size={12} /> Slip risk flagged</h2>
           <ul className="risk-list">
             {offTrack.map((ph) => (
               <li key={ph.project.autotask_id}>
@@ -87,9 +114,14 @@ export function ProjectsPage() {
 
 function ProjectRow({ ph }: { ph: ProjectHealth }) {
   const burn = ph.burnRiskScore;
-  const burnTone =
-    burn > 0.15 ? 'failed' : burn > 0.05 ? 'partial' : 'success';
+  const burnTone = burn > 0.15 ? 'failed' : burn > 0.05 ? 'partial' : 'success';
   const due = ph.daysUntilDue;
+  const statusLabel = ph.project.status;
+  const statusTone =
+    statusLabel === 'New' ? 'running'
+    : statusLabel.startsWith('Planning') ? 'partial'
+    : statusLabel.startsWith('Execution') ? 'success'
+    : 'running';
 
   return (
     <tr>
@@ -99,12 +131,9 @@ function ProjectRow({ ph }: { ph: ProjectHealth }) {
       </td>
       <td>{ph.project.account_name ?? '—'}</td>
       <td>
-        <span className="pill pill-running">
-          {ph.project.contract_type === 'fixed_fee' ? 'Fixed fee' :
-           ph.project.contract_type === 'retainer' ? 'Retainer' : 'T&M'}
-        </span>
+        <span className={`pill pill-${statusTone}`}>{statusLabel}</span>
       </td>
-      <td>
+      <td className="num">
         {ph.hoursDelivered}h / {ph.hoursBudgeted}h{' '}
         <span className="muted">({pctStr(ph.hoursPctConsumed)})</span>
       </td>
@@ -124,7 +153,7 @@ function ProjectRow({ ph }: { ph: ProjectHealth }) {
           </span>
         )}
       </td>
-      <td className={due < 7 ? 'cell-warn' : ''}>
+      <td className={due < 7 ? 'cell-warn num' : 'num'}>
         {due < 0 ? `${-due}d overdue` : `${due}d`}
       </td>
     </tr>
@@ -144,15 +173,6 @@ function BurnBar({ pctHours, pctTime }: { pctHours: number; pctTime: number }) {
           style={{ width: `${Math.min(100, Math.round(pctHours * 100))}%` }}
         />
       </div>
-    </div>
-  );
-}
-
-function Kpi({ label, value, tone }: { label: string; value: string; tone: 'green' | 'orange' | 'red' }) {
-  return (
-    <div className={`kpi kpi-${tone}`}>
-      <div className="kpi-label">{label}</div>
-      <div className="kpi-value">{value}</div>
     </div>
   );
 }

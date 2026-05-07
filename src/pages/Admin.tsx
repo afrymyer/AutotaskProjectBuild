@@ -1,17 +1,24 @@
+import { Settings, AlertTriangle } from 'lucide-react';
 import { useAdminData } from '../lib/data';
+import { PageHero } from '../components/PageHero';
+import { StatusDot } from '../components/StatusDot';
 
 export function AdminPage() {
   const { syncRuns, statusMappings, integrations } = useAdminData();
   const recentFailures = syncRuns.slice(0, 3).filter((r) => r.status === 'failed').length;
-  const banner = recentFailures >= 3 ? 'red' : null;
 
   return (
     <section>
-      <h1>Admin</h1>
+      <PageHero
+        icon={<Settings size={20} />}
+        title="Admin"
+        subtitle="Status mappings, integrations health, and sync history."
+      />
 
-      {banner && (
+      {recentFailures >= 3 && (
         <div className="banner danger">
-          ⚠ Sync has failed {recentFailures} consecutive runs. Investigate.
+          <AlertTriangle size={16} />
+          <span>Sync has failed {recentFailures} consecutive runs. Investigate.</span>
         </div>
       )}
 
@@ -26,16 +33,22 @@ export function AdminPage() {
           </tr>
         </thead>
         <tbody>
-          {integrations.map((i) => (
-            <tr key={i.id}>
-              <td><code>{i.id}</code></td>
-              <td><span className={`pill pill-${integrationTone(i.status)}`}>{i.status}</span></td>
-              <td>{i.last_health_check_at ?? <span className="muted">—</span>}</td>
-              <td className="muted small">
-                {integrationDescription(i.id)}
-              </td>
-            </tr>
-          ))}
+          {integrations.map((i) => {
+            const tone = integrationDot(i.status);
+            return (
+              <tr key={i.id}>
+                <td><code>{i.id}</code></td>
+                <td>
+                  <span className="row-with-avatar">
+                    <StatusDot tone={tone} />
+                    <span>{i.status}</span>
+                  </span>
+                </td>
+                <td>{i.last_health_check_at ?? <span className="muted">—</span>}</td>
+                <td className="muted small">{integrationDescription(i.id)}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
 
@@ -59,18 +72,20 @@ export function AdminPage() {
               <td>
                 <span className={`pill pill-${r.status}`}>{r.status}</span>
               </td>
-              <td>{r.resources}</td>
-              <td>{r.projects}</td>
-              <td>{r.tasks}</td>
-              <td>{r.schedule_entries}</td>
-              <td>{r.time_entries}</td>
+              <td className="num">{r.resources}</td>
+              <td className="num">{r.projects}</td>
+              <td className="num">{r.tasks}</td>
+              <td className="num">{r.schedule_entries}</td>
+              <td className="num">{r.time_entries}</td>
             </tr>
           ))}
         </tbody>
       </table>
 
       <h2>Status mappings</h2>
-      <p className="muted">Maps Autotask status strings to app buckets used by the utilization view and pipeline.</p>
+      <p className="muted small">
+        Maps Autotask status strings to app buckets used by the utilization view and pipeline.
+      </p>
       <table className="data-table">
         <thead>
           <tr>
@@ -95,11 +110,11 @@ export function AdminPage() {
   );
 }
 
-function integrationTone(s: string): 'success' | 'partial' | 'failed' | 'running' {
-  if (s === 'configured') return 'success';
-  if (s === 'unconfigured') return 'partial';
-  if (s === 'error') return 'failed';
-  return 'running';
+function integrationDot(s: string): 'green' | 'yellow' | 'red' | 'muted' {
+  if (s === 'configured') return 'green';
+  if (s === 'unconfigured') return 'muted';
+  if (s === 'error') return 'red';
+  return 'yellow';
 }
 
 function integrationDescription(id: string): string {
